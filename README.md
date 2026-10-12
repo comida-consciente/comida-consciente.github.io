@@ -4,7 +4,7 @@ Registro de alimentación y estado emocional. Local, sin cuentas y sin nube: cad
 móvil es una persona.
 
 **La documentación vive en el vault**, no aquí: `../Vault Proyectos/Comida_App/`.
-Empezar por `Comida App.md`. Este repo es sólo la implementación.
+Empezar por `Comida_App.md`. Este repo es sólo la implementación.
 
 | En el vault | Qué es |
 |---|---|
