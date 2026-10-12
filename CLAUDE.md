@@ -1,7 +1,7 @@
 # Comida App — contexto para Claude Code
 
 **La documentación canónica vive en el vault**, no aquí:
-`../Vault Proyectos/Comida_App/`. Empezar por `Comida_App.md`, y para la app
+`../Vault_Proyectos/Comida_App/`. Empezar por `Comida_App.md`, y para la app
 de registro, por `Diseño/CA-Especificacion-App-Registro.md`.
 
 Este fichero no duplica nada: sólo recuerda las reglas que no se pueden

@@ -3,7 +3,7 @@
 Registro de alimentación y estado emocional. Local, sin cuentas y sin nube: cada
 móvil es una persona.
 
-**La documentación vive en el vault**, no aquí: `../Vault Proyectos/Comida_App/`.
+**La documentación vive en el vault**, no aquí: `../Vault_Proyectos/Comida_App/`.
 Empezar por `Comida_App.md`. Este repo es sólo la implementación.
 
 | En el vault | Qué es |
@@ -144,7 +144,7 @@ vault) y luego `dia.schema.json`, **en ese orden**.
 
 Los fixtures **no se copian aquí**: son el contrato de aceptación y viven junto a
 la documentación que los explica, en el vault. Los tests los buscan al lado
-(`../Vault Proyectos/Comida_App/fixtures`) y se saltan solos si no están. Para
+(`../Vault_Proyectos/Comida_App/fixtures`) y se saltan solos si no están. Para
 apuntar a otro sitio:
 
 ```bash
