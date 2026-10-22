@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3Df5+nIbfJM2jLDEnx8R9G7wTFJRc+A3EVTc+4b82uw='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- D17.6: vista previa del enlace (LinkedIn, WhatsApp…) e iconos. La imagen, sin datos reales. -->
@@ -612,7 +614,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.8.1';
+const VERSION='v0.9';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';

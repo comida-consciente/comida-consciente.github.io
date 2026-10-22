@@ -19,7 +19,10 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-POR_DEFECTO = RAIZ.parent / "Vault_Proyectos" / "Comida_App" / "fixtures"
+# D17: la carpeta del vault pasa a llamarse Comida_Consciente; la vieja se acepta mientras dure la mudanza.
+_VAULT = RAIZ.parent / "Vault_Proyectos"
+POR_DEFECTO = next((p for p in (_VAULT / "Comida_Consciente" / "fixtures", _VAULT / "Comida_App" / "fixtures") if p.is_dir()),
+                   _VAULT / "Comida_Consciente" / "fixtures")
 
 
 def ruta_fixtures() -> Path:
