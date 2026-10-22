@@ -1964,6 +1964,9 @@ const esperando=()=>bloqueada&&perfil.esperaHasta>Date.now();
 function bloquear(){
   if(!perfil.pin)return;
   bloqueada=true;document.body.classList.add('locked');document.body.classList.remove('veil');
+  /* SEG-20: con el PIN puesto, los registros no están en la página hasta desbloquear. La hoja
+     abierta (lo que se estaba escribiendo) se conserva, oculta, para no perderlo. */
+  $('top').innerHTML='';$('banner').innerHTML='';$('view').innerHTML='';
   const L=$('lock');L.hidden=false;
   L.innerHTML='<div class="pinbox"><div class="lk">'+ico('candado')+'</div><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Hola')+'</h1>'
     +(hayCrypto()?padHtml()+'<button class="pinlink" id="forgotBtn">¿Has olvidado el PIN?</button><div id="forgotBox"></div>'
@@ -2200,7 +2203,6 @@ document.addEventListener('keydown',e=>{
 });
 
 data=load();
-render();
-if(perfil.pin)bloquear();
+if(perfil.pin)bloquear();else render();
 })();
 </script>
