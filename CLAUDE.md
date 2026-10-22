@@ -61,6 +61,9 @@ el cambio está mal. `fixtures/CC-Fixtures.md` explica qué prueba cada uno.
   tiene que poder comprobarse.
 - Lo que llega de una copia pasa por `sanearIngesta`/`sanearDia`, y todo lo que entra en el HTML,
   por `esc()`, también en clases y atributos.
+- **Cifrado con el PIN (D18).** Nunca se guarda el PIN ni un hash suyo cuando cifra; la sal va en el
+  sobre. `save()` y `refrescar()` devuelven promesas: esperarlas antes de avisar de nada. Con PIN,
+  `data` es `null` mientras la app está bloqueada. La copia de seguridad va sin cifrar (decidido).
 
 ## Notas de trabajo
 

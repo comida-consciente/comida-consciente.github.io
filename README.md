@@ -27,17 +27,17 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 | `Diseño/CC-Especificacion-App-Registro.md` | **La app**: pantallas, datos, exportación, diseño y plan |
 | `Tareas/CC-Instrucciones.md` | Principios no negociables, qué **no** construir y, al final, el **banco de ideas** |
 | `Diseño/CC-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
-| `Diseño/CC-Decisiones.md` | Las decisiones (D1–D17), con su motivo |
+| `Diseño/CC-Decisiones.md` | Las decisiones (D1–D18), con su motivo |
 | `Diseño/CC-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
-| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.9` |
+| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.10` |
 | `QA/` | Bugs, compatibilidad y la revisión de seguridad (`CC-Revision-Publicacion`) |
 | `fixtures/` | Contrato de aceptación del parser y del validador |
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.9**: el
-diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16) y la revisión de
-seguridad antes de publicar (D17). Guarda en el `localStorage` del navegador: cada móvil tiene
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.10**: el
+diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
+seguridad antes de publicar (D17) y el **cifrado con el PIN** (D18). Guarda en el `localStorage` del navegador: cada móvil tiene
 sus propios datos (D12). La copia de seguridad es `version: 3`.
 
 - **La clave de guardado (`comida-app-proto-v1`) y la marca de la copia (`"app": "comida-app"`) no
@@ -48,6 +48,11 @@ sus propios datos (D12). La copia de seguridad es `version: 3`.
   recalcularlo con `python3 tests/csp.py --escribir`. El test `tests/test_csp.py` falla si no
   coincide, así que no se puede publicar roto sin darse cuenta.
 - Las fuentes están en `fonts/` (sin Google Fonts). No se carga nada de fuera.
+- **Cifrado (D18).** Con PIN (6 cifras), lo guardado es un sobre `{"cifrado":1, kdf, iv, comp, datos}`:
+  AES-GCM de 256 bits con clave PBKDF2-SHA-256 de 600 000 vueltas, comprimido con gzip antes de
+  cifrar. No se guarda ningún hash del PIN: se comprueba al descifrar. Al bloquear, la app olvida
+  los datos y la clave. La copia de seguridad va sin cifrar. `save()` y `refrescar()` son
+  asíncronos: se esperan con `await` antes de decir «Guardado».
 - Para probarla en local: `python3 -m http.server` en la raíz del repo y abrir
   `http://127.0.0.1:8000/`. El PIN necesita `localhost` o https (Web Crypto), no `file://`.
 

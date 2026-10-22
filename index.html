@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3Df5+nIbfJM2jLDEnx8R9G7wTFJRc+A3EVTc+4b82uw='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vSAfyjaOFNvj+YhDMhoNR6gjwAsF2nCmr7bRqU/VC0o='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -614,7 +614,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.9';
+const VERSION='v0.10';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -656,13 +656,15 @@ let TODAY=iso(new Date());
 const uid=()=>Math.random().toString(36).slice(2,10);
 /* Se carga al final, cuando ya existen todas las funciones que sanean (D17.12). */
 let data;
-/* Perfil (D14): nombre y PIN. El PIN nunca se guarda en claro: sal + hash PBKDF2. */
+/* Perfil (D14, D18): nombre y PIN. El PIN nunca se guarda. Con cifrado (D18) no hay ni hash:
+   se comprueba al descifrar. El PIN de 4 cifras heredado guarda sal + hash PBKDF2 hasta cambiarlo. */
 let perfil={nombre:'',pin:null,bloqueo:'5min',fallos:0,esperaHasta:0};
 try{
   const p=JSON.parse(localStorage.getItem(STORE+'-perfil')||'null');
   if(p){
     if(typeof p.nombre==='string')perfil.nombre=p.nombre;
-    if(p.pin&&p.pin.salt&&p.pin.hash&&p.pin.iter)perfil.pin={salt:p.pin.salt,hash:p.pin.hash,iter:p.pin.iter};
+    if(p.pin&&p.pin.cifra===true)perfil.pin={cifra:true,len:6};
+    else if(p.pin&&p.pin.salt&&p.pin.hash&&p.pin.iter)perfil.pin={salt:p.pin.salt,hash:p.pin.hash,iter:p.pin.iter,len:4};
     if(p.bloqueo==='salir')perfil.bloqueo='salir';
     perfil.fallos=Number(p.fallos)||0;perfil.esperaHasta=Number(p.esperaHasta)||0;
   }
@@ -672,7 +674,11 @@ try{const u=JSON.parse(localStorage.getItem(STORE+'-ui')||'null');if(u){if(u.sec
 
 function load(){
   let raw=null;
-  try{raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){normData(d);ultimoRaw=raw;return d;}}}catch(e){}
+  try{raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);
+    /* D18: datos cifrados. No se leen hasta el PIN; la sal va en el sobre, así que se pueden abrir
+       aunque se hubiera perdido el perfil. */
+    if(esSobre(d)){ultimoRaw=raw;if(!perfil.pin||!perfil.pin.cifra)perfil.pin={cifra:true,len:6};return null;}
+    if(esObj(d)&&esObj(d.ingestas)){normData(d);ultimoRaw=raw;return d;}}}catch(e){}
   /* Si había algo y no se ha podido leer, se guarda aparte tal cual antes de que nada lo pise. */
   if(raw){try{if(!localStorage.getItem(STORE+'-roto'))localStorage.setItem(STORE+'-roto',raw);}catch(e){}}
   return seed();
@@ -682,15 +688,35 @@ let guardadoFalla=false;
 /* SEG-10: lo último que esta pestaña ha leído o escrito. Si otra pestaña ha guardado después,
    refrescar() lo vuelve a leer antes de cambiar nada, para no pisarlo. */
 let ultimoRaw=null;
-function refrescar(){
-  try{const raw=localStorage.getItem(STORE);if(raw&&raw!==ultimoRaw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;datosVer++;return true;}}}catch(e){}
+async function refrescar(){
+  try{
+    const raw=localStorage.getItem(STORE);if(!raw||raw===ultimoRaw)return false;
+    let d=JSON.parse(raw);
+    if(esSobre(d)){if(!clave)return false;d=JSON.parse(await descifrar(d,clave));}
+    if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;datosVer++;return true;}
+  }catch(e){
+    /* Con cifrado, si no se puede abrir lo que ha guardado otra pestaña (otro PIN), se bloquea. */
+    if(perfil.pin&&perfil.pin.cifra&&!bloqueada)bloquear();
+  }
   return false;
 }
+/* D18: con PIN, se guarda cifrado. Los guardados van en cola, uno detrás de otro; save() devuelve
+   una promesa con si se ha guardado. */
+let cola=Promise.resolve();
 function save(){
   datosVer++;
-  try{const raw=JSON.stringify(data);localStorage.setItem(STORE,raw);ultimoRaw=raw;guardadoFalla=false;}catch(e){guardadoFalla=true;}
-  const b=$('banner');if(b)b.innerHTML=bannerHtml();
-  return !guardadoFalla;
+  const texto=JSON.stringify(data),cifra=!!(perfil.pin&&perfil.pin.cifra),k=clave,kdf=sobreKdf;
+  const p=cola.then(async()=>{
+    try{
+      if(cifra&&!k)throw new Error('sin clave');
+      const raw=cifra?await cifrar(texto,k,kdf):texto;
+      localStorage.setItem(STORE,raw);ultimoRaw=raw;guardadoFalla=false;
+    }catch(e){guardadoFalla=true;}
+    const b=$('banner');if(b&&!bloqueada)b.innerHTML=bannerHtml();
+    return !guardadoFalla;
+  });
+  cola=p.catch(()=>{});
+  return p;
 }
 /* D17.8: pedir al navegador que no borre los datos solo, tras el primer registro (no al abrir:
    algún navegador lo pregunta y no tiene sentido sin datos). */
@@ -1448,12 +1474,12 @@ function cambiarClave(de,a){
   pat.filtros.etiquetas=[...new Set(pat.filtros.etiquetas.map(k=>k===de?a:k).filter(Boolean))];
   data.etiquetasDistintas=(data.etiquetasDistintas||[]).map(p=>p.map(k=>k===de?a:k)).filter(p=>p[0]&&p[1]&&p[0]!==p[1]);
 }
-function fusionarEtq(de,a){
-  refrescar();
+async function fusionarEtq(de,a){
+  await refrescar();
   const dest=catalogoEtq().find(c=>c.clave===a);if(!dest||de===a)return;
-  reescribirEtq(l=>l.map(t=>claveEtq(t)===de?dest.nombre:t));cambiarClave(de,a);save();
+  reescribirEtq(l=>l.map(t=>claveEtq(t)===de?dest.nombre:t));cambiarClave(de,a);await save();
 }
-function borrarEtq(k){refrescar();reescribirEtq(l=>l.filter(t=>claveEtq(t)!==k));cambiarClave(k,'');save();}
+async function borrarEtq(k){await refrescar();reescribirEtq(l=>l.filter(t=>claveEtq(t)!==k));cambiarClave(k,'');await save();}
 function openEtq(){
   if(!catalogoEtq().length){openMe();return;}
   if(!$('etqSheet')){
@@ -1495,12 +1521,12 @@ function pintarEtqHoja(){
   if(etqUi.ren&&$('f-ren')){const i=$('f-ren');i.focus();i.setSelectionRange(i.value.length,i.value.length);}
 }
 /* Renombrar a un nombre que ya existe es una fusión: se avisa antes y se confirma. */
-function renGuardar(){
+async function renGuardar(){
   const de=etqUi.ren,v=$('f-ren').value,n=limpiarEtq(v),k=claveEtq(n);if(!de||!n)return;
   const ex=catalogoEtq().find(c=>c.clave===k&&c.clave!==de);
   if(ex&&!etqUi.renAviso){etqUi.renAviso='Ya existe «'+ex.nombre+'»: se fusionarán las dos.';etqUi.renVal=v;pintarEtqHoja();return;}
-  if(ex){fusionarEtq(de,k);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
-  refrescar();reescribirEtq(l=>l.map(t=>claveEtq(t)===de?n:t));cambiarClave(de,k);save();
+  if(ex){await fusionarEtq(de,k);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
+  await refrescar();reescribirEtq(l=>l.map(t=>claveEtq(t)===de?n:t));cambiarClave(de,k);await save();
   etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta renombrada');
 }
 
@@ -1609,7 +1635,13 @@ function addEtq(t,foco){
 }
 function guessTipo(d){const h=d.getHours()+d.getMinutes()/60;return h<10.5?'desayuno':h<12.5?'media_manana':h<16?'comida':h<19.5?'merienda':'cena';}
 function readPick(name){const box=document.querySelector('[data-pick="'+name+'"]');return [...box.querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);}
-function saveIngesta(){
+/* Un solo guardado a la vez: un doble toque en Guardar no guarda dos veces. */
+let guardando=false;
+async function saveIngesta(){
+  if(guardando)return;guardando=true;
+  try{await guardarIngesta();}finally{guardando=false;}
+}
+async function guardarIngesta(){
   const x=draft;
   x.tipo=readPick('tipo')[0]||'comida';
   x.hora=$('f-hora').value;x.alimentos=$('f-alimentos').value.trim();
@@ -1625,7 +1657,7 @@ function saveIngesta(){
   x.sintomas=readPick('sintomas');x.sintomasOtros=x.sintomas.includes('Otros')?$('f-sintomasOtros').value.trim():'';
   if(!x.id)x.id=uid();
   delete x.ejemplo;
-  refrescar();data.ingestas[x.id]=x;if(save())pedirPersistencia();
+  await refrescar();data.ingestas[x.id]=x;if(await save())pedirPersistencia();
   /* Desde Resultados se vuelve a Resultados, recalculado (§3.14). */
   if(volverRes){volverRes=false;close();render();toastGuardado('Guardado');return;}
   close();ui.sec='hoy';ui.cursor=x.fecha;saveUi();render();toastGuardado('Guardado');
@@ -1657,14 +1689,18 @@ function stepBy(k,dir){
   else{v=Math.round((cur+dir*c.inc)*100)/100;if(v<0)v=null;else if(v>c.max)v=c.max;}
   o.outerHTML=stepOut(k,v);
 }
-function saveDay(){
+async function saveDay(){
+  if(guardando)return;guardando=true;
+  try{await guardarDia();}finally{guardando=false;}
+}
+async function guardarDia(){
   const o={};['actividad','reflexiones','predominantes','orgullo','gratitud'].forEach(k=>{const v=$('d-'+k).value.trim();if(v)o[k]=v;});
   Object.keys(STEPS).forEach(k=>{const v=$('d-'+k).dataset.v;if(v!=='')o[k]=Number(v);});
   const cal=readPick('suenoCalidad')[0];if(cal)o.suenoCalidad=cal;
-  refrescar();
+  await refrescar();
   const prev=data.dias[ui.cursor]||{};if(prev.aguaTexto&&o.agua==null)o.aguaTexto=prev.aguaTexto;
   if(Object.keys(o).length)data.dias[ui.cursor]=o;else delete data.dias[ui.cursor];
-  save();close();render();toastGuardado('Guardado');
+  await save();close();render();toastGuardado('Guardado');
 }
 
 /* ---------- exportar ---------- */
@@ -1838,6 +1874,7 @@ function sobreBlock(){
   return '<details class="block sobre"><summary><span class="bd"></span><span class="tw"><h4>Sobre esta app</h4></span><span class="chev" aria-hidden="true">⌄</span></summary><div class="inner">'
     +'<p><b>Qué es.</b> Un registro de lo que comes y de cómo te sientes antes y después. Sirve para darte cuenta, no para controlar: no cuenta calorías ni pone notas.</p>'
     +'<p><b>Dónde están tus datos.</b> Solo en este navegador, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si borras los datos del navegador, se pierden: guarda una copia de vez en cuando.</p>'
+    +'<p><b>Con PIN</b>, lo que apuntas se guarda cifrado: sin el PIN no se puede leer.</p>'
     +'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>'
     +'<p><b>No es una herramienta médica</b> ni da consejos de alimentación. Lo que veas en Patrones son pistas para pensar o para comentar con un profesional.</p>'
     +'<div id="wipeBox"><button type="button" class="btn danger" id="wipeMe">Borrar todos mis datos</button></div>'
@@ -1846,7 +1883,7 @@ function sobreBlock(){
 }
 function pinBlock(){
   const on=!!perfil.pin;
-  return '<div class="block"><div class="bk-h"><span class="ic">'+ico('candado')+'</span><div><h4>PIN</h4><small>'+(on?'Activado':'Desactivado')+'</small></div></div>'
+  return '<div class="block"><div class="bk-h"><span class="ic">'+ico('candado')+'</span><div><h4>PIN</h4><small>'+(on?(perfil.pin.cifra?'Activado · cifrado':'Activado · sin cifrar'):'Desactivado')+'</small></div></div>'
     +(on?'<div class="row2"><button class="btn sec" data-pinflow="cambiar">Cambiar PIN</button><button class="btn sec" data-pinflow="quitar">Quitar PIN</button></div>'
       +'<div class="field"><span class="lbl" id="lb-bloqueo">Pedir el PIN</span><div class="seg" role="group" aria-labelledby="lb-bloqueo"><button type="button" data-bloqueo="salir" aria-pressed="'+(perfil.bloqueo==='salir')+'">Nada más salir</button><button type="button" data-bloqueo="5min" aria-pressed="'+(perfil.bloqueo==='5min')+'">Tras 5 min fuera</button></div></div>'
       :'<p class="pin-st">Tapa la app para que nadie que coja el móvil vea tus registros. No se pide al registrar.</p><div class="row2"><button class="btn primary" data-pinflow="activar">Activar PIN</button></div>')
@@ -1888,15 +1925,15 @@ function backupJson(){
 async function saveBackup(){
   const json=backupJson(),name='comida-consciente-copia-'+TODAY+'.json';
   const dl=await getDownloader();
-  const done=()=>{refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');render();openBackup();};
+  const done=async()=>{await refrescar();data.ultimaCopia=new Date().toISOString();await save();toast('Copia guardada');render();openBackup();};
   const fallback=msg=>showBackupText(msg);
   if(!dl){fallback('Aquí no se puede descargar el archivo. Copia este texto y guárdalo en Notas o en un archivo .json:');return;}
-  try{await dl.save({filename:name,data:json});done();}
+  try{await dl.save({filename:name,data:json});await done();}
   catch(e){if(e&&e.code==='declined')return;fallback('No se ha podido guardar el archivo. Copia este texto y guárdalo:');}
 }
-function showBackupText(msg){
+async function showBackupText(msg){
   $('saveFallback').innerHTML='<p class="status">'+esc(msg||'Copia este texto y guárdalo en Notas. Para recuperarlo, pégalo en «Recuperar copia → Desde texto».')+'</p><textarea class="export" id="expTxt" readonly>'+esc(JSON.stringify(JSON.parse(backupJson())))+'</textarea><button class="btn primary" id="copyBtn">Copiar texto</button>';
-  refrescar();data.ultimaCopia=new Date().toISOString();save();render();
+  await refrescar();data.ultimaCopia=new Date().toISOString();await save();render();
 }
 function readImport(file){
   const r=new FileReader();
@@ -1961,47 +1998,96 @@ function mergeImport(o){
   const nombre=!perfil.nombre&&nom?nom:'';
   return {next,nuevas,completadas,dias,nombre,malas,exportado:exp};
 }
-function doImport(){
-  if(refrescar())pendingImport=Object.assign(mergeImport(pendingImport.o),{o:pendingImport.o});
+async function doImport(){
+  if(await refrescar())pendingImport=Object.assign(mergeImport(pendingImport.o),{o:pendingImport.o});
   const antes=data;data=pendingImport.next;
   /* Si la copia no cabe, no se cambia nada: lo de antes sigue guardado tal cual. */
-  if(!save()){data=antes;guardadoFalla=false;pendingImport=null;$('banner').innerHTML=bannerHtml();
+  if(!(await save())){data=antes;guardadoFalla=false;pendingImport=null;$('banner').innerHTML=bannerHtml();
     $('importMsg').innerHTML='<div class="confirm" role="alert"><span>La copia no cabe en este móvil y no se ha recuperado nada. Tus datos siguen como estaban.</span></div>';return;}
   if(pendingImport.nombre){perfil.nombre=pendingImport.nombre;savePerfil();}
   pendingImport=null;close();render();toast('Copia recuperada');
 }
 
-/* ---------- PIN (D14) ----------
-   Nivel 1: tapa la app, no cifra los datos (el cifrado es el banco de ideas §4.5).
-   PBKDF2-SHA-256 con Web Crypto: solo existe en https o localhost, no en file://. */
-const PIN_ITER=150000,FALLOS_MAX=5,ESPERA_MS=30000,FUERA_MS=5*60*1000;
+/* ---------- PIN y cifrado (D14, D18) ----------
+   Con PIN (6 cifras), lo guardado va cifrado con AES-GCM de 256 bits y una clave que sale del PIN
+   con PBKDF2-SHA-256 (CLAVE_ITER vueltas, lento a propósito). No se guarda ningún hash: el PIN
+   se comprueba al descifrar. Antes de cifrar se comprime (gzip) si el navegador sabe. Al bloquear,
+   la app olvida los datos y la clave. La copia de seguridad va sin cifrar (D17.9).
+   El PIN de 4 cifras de antes (D14, solo tapa) se comprueba con su hash y, al entrar, obliga a
+   elegir uno de 6. Web Crypto solo existe en https o localhost, no en file://. */
+const PIN_ITER=150000,CLAVE_ITER=600000,PIN_LARGO=6,FALLOS_MAX=5,ESPERA_MS=30000,FUERA_MS=5*60*1000;
 const hayCrypto=()=>!!(window.crypto&&crypto.subtle);
-const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64=buf=>{const a=new Uint8Array(buf);let t='';for(let i=0;i<a.length;i+=0x8000)t+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(t);};
 const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+const esSobre=d=>esObj(d)&&d.cifrado===1&&typeof d.datos==='string'&&typeof d.iv==='string'&&esObj(d.kdf);
+let clave=null,sobreKdf=null;
 async function derivar(pin,salt,iter){
   const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits']);
   return b64(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:iter},k,256));
 }
-async function crearPin(pin){const salt=crypto.getRandomValues(new Uint8Array(16));return {salt:b64(salt),hash:await derivar(pin,salt,PIN_ITER),iter:PIN_ITER};}
-async function pinCorrecto(pin){const p=perfil.pin;return !!p&&(await derivar(pin,unb64(p.salt),p.iter))===p.hash;}
+async function pinCorrecto(pin){const p=perfil.pin;return !!p&&!!p.hash&&(await derivar(pin,unb64(p.salt),p.iter))===p.hash;}
+async function derivarClave(pin,salt,iter){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt,iterations:iter},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+const hayComp=()=>typeof CompressionStream==='function'&&typeof DecompressionStream==='function';
+async function pasar(bytes,stream){return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());}
+async function cifrar(texto,k,kdf){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  let b=new TextEncoder().encode(texto),comp=null;
+  if(hayComp()){b=await pasar(b,new CompressionStream('gzip'));comp='gzip';}
+  const c=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,b);
+  return JSON.stringify({cifrado:1,v:1,kdf,iv:b64(iv),comp,datos:b64(c)});
+}
+async function descifrar(sobre,k){
+  const b=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(sobre.iv)},k,unb64(sobre.datos)));
+  return new TextDecoder().decode(sobre.comp==='gzip'?await pasar(b,new DecompressionStream('gzip')):b);
+}
+/* Abre lo guardado con este PIN. Devuelve {clave,kdf,raw,datos} o null si el PIN no es. */
+async function abrirConPin(pin){
+  const raw=localStorage.getItem(STORE),d=JSON.parse(raw||'null');
+  if(!esSobre(d))return null;
+  try{const k=await derivarClave(pin,unb64(d.kdf.salt),d.kdf.iter);return {clave:k,kdf:d.kdf,raw,datos:JSON.parse(await descifrar(d,k))};}
+  catch(e){return null;}
+}
+/* Cifra los datos con un PIN nuevo (activar, cambiar o pasar del de 4). Si no cabe, lanza y no cambia nada. */
+async function cifrarConPin(pin){
+  await cola;
+  const salt=crypto.getRandomValues(new Uint8Array(16)),kdf={salt:b64(salt),iter:CLAVE_ITER};
+  const k=await derivarClave(pin,salt,CLAVE_ITER);
+  const raw=await cifrar(JSON.stringify(data),k,kdf);
+  localStorage.setItem(STORE,raw);
+  clave=k;sobreKdf=kdf;ultimoRaw=raw;guardadoFalla=false;
+  perfil.pin={cifra:true,len:PIN_LARGO};perfil.fallos=0;perfil.esperaHasta=0;savePerfil();
+}
+/* Quitar el PIN: los datos vuelven a guardarse sin cifrar. */
+async function quitarCifrado(){
+  await cola;
+  const raw=JSON.stringify(data);localStorage.setItem(STORE,raw);
+  clave=null;sobreKdf=null;ultimoRaw=raw;
+  perfil.pin=null;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();
+}
+/* ¿Es este el PIN actual? Con cifrado, intentando abrir los datos; con el de 4, con su hash. */
+async function verificarPin(pin){return perfil.pin&&perfil.pin.cifra?!!(await abrirConPin(pin)):await pinCorrecto(pin);}
+const largoPin=()=>perfil.pin&&perfil.pin.len===4?4:PIN_LARGO;
 
 /* Teclado: un solo teclado activo a la vez (el del bloqueo o el de un flujo). */
 let teclado=null;
-const padHtml=()=>'<div class="dots" id="pinDots" role="status" aria-live="polite" aria-label="0 de 4"><i></i><i></i><i></i><i></i></div><div class="pinmsg" id="pinMsg"></div>'
+const padHtml=n=>'<div class="dots" id="pinDots" role="status" aria-live="polite" aria-label="0 de '+n+'">'+'<i></i>'.repeat(n)+'</div><div class="pinmsg" id="pinMsg"></div>'
   +'<div class="pad" id="pinPad">'+[1,2,3,4,5,6,7,8,9].map(n=>'<button type="button" data-key="'+n+'" aria-label="'+n+'">'+n+'</button>').join('')
   +'<span></span><button type="button" data-key="0" aria-label="0">0</button><button type="button" class="del" data-key="del" aria-label="Borrar">'+ico('borrar')+'</button></div>';
-function padStart(cb,msg,ok){teclado={buf:'',busy:false,cb};pintarPad();if(msg)pinMsg(msg,ok);}
+function padStart(cb,msg,ok,n){teclado={buf:'',busy:false,cb,n:n||PIN_LARGO};pintarPad();if(msg)pinMsg(msg,ok);}
 function pintarPad(){
   const d=$('pinDots');if(!d||!teclado)return;
   [...d.children].forEach((i,k)=>i.classList.toggle('on',k<teclado.buf.length));
-  d.setAttribute('aria-label',teclado.buf.length+' de 4');
+  d.setAttribute('aria-label',teclado.buf.length+' de '+teclado.n);
 }
 function pinMsg(t,ok){const m=$('pinMsg');if(m){m.textContent=t||'';m.classList.toggle('ok',!!ok);}}
 function padKey(k){
   if(!teclado||teclado.busy||esperando())return;
-  if(k==='del')teclado.buf=teclado.buf.slice(0,-1);else if(teclado.buf.length<4)teclado.buf+=k;
+  if(k==='del')teclado.buf=teclado.buf.slice(0,-1);else if(teclado.buf.length<teclado.n)teclado.buf+=k;
   pintarPad();
-  if(teclado.buf.length===4){teclado.busy=true;const v=teclado.buf;Promise.resolve(teclado.cb(v)).catch(()=>padFallo('No se ha podido comprobar el PIN'));}
+  if(teclado.buf.length===teclado.n){teclado.busy=true;const v=teclado.buf;Promise.resolve(teclado.cb(v)).catch(()=>padFallo('No se ha podido comprobar el PIN'));}
 }
 function padFallo(msg){
   const d=$('pinDots');
@@ -2016,19 +2102,36 @@ const esperando=()=>bloqueada&&perfil.esperaHasta>Date.now();
 function bloquear(){
   if(!perfil.pin)return;
   bloqueada=true;document.body.classList.add('locked');document.body.classList.remove('veil');
-  /* SEG-20: con el PIN puesto, los registros no están en la página hasta desbloquear. La hoja
-     abierta (lo que se estaba escribiendo) se conserva, oculta, para no perderlo. */
+  /* SEG-20: con el PIN puesto, los registros no están en la página hasta desbloquear. Solo se
+     conserva, oculto, un registro o un cierre a medias (D18: para no perder lo escrito); cualquier
+     otra hoja se cierra. */
   $('top').innerHTML='';$('banner').innerHTML='';$('view').innerHTML='';
+  if(!$('fIng')&&!$('fDay'))close();
+  pendingImport=null;
+  /* D18: con cifrado, la app olvida los datos y la clave hasta el PIN. */
+  if(perfil.pin.cifra){data=null;clave=null;datosVer++;}
   const L=$('lock');L.hidden=false;
   L.innerHTML='<div class="pinbox"><div class="lk">'+ico('candado')+'</div><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Hola')+'</h1>'
-    +(hayCrypto()?padHtml()+'<button class="pinlink" id="forgotBtn">¿Has olvidado el PIN?</button><div id="forgotBox"></div>'
+    +(hayCrypto()?padHtml(largoPin())+'<button class="pinlink" id="forgotBtn">¿Has olvidado el PIN?</button><div id="forgotBox"></div>'
       :'<p>Para desbloquearla, abre la app desde su dirección https (GitHub Pages).</p>')+'</div>';
-  if(hayCrypto()){padStart(desbloquearCon);tickEspera();}
+  if(hayCrypto()){padStart(desbloquearCon,'',false,largoPin());tickEspera();}
 }
 async function desbloquearCon(pin){
-  if(await pinCorrecto(pin)){
+  let ok=false;
+  if(perfil.pin.cifra){
+    /* Sin nada cifrado guardado no hay qué proteger: se quita el PIN. */
+    if(!esSobre(JSON.parse(localStorage.getItem(STORE)||'null'))){perfil.pin=null;savePerfil();if(!data)data=load();ok=true;}
+    else{
+      pinMsg('Comprobando…',true);
+      const a=await abrirConPin(pin);
+      if(a){clave=a.clave;sobreKdf=a.kdf;ultimoRaw=a.raw;data=normData(a.datos);datosVer++;ok=true;}
+    }
+  }else ok=await pinCorrecto(pin);
+  if(ok){
     perfil.fallos=0;perfil.esperaHasta=0;savePerfil();
     bloqueada=false;teclado=null;document.body.classList.remove('locked');$('lock').hidden=true;$('lock').innerHTML='';render();
+    /* D18: el PIN de 4 cifras se cambia por uno de 6 al entrar, una sola vez. */
+    if(perfil.pin&&!perfil.pin.cifra){flujo={mode:'migrar',first:''};pasoPin('elegir');}
     return;
   }
   perfil.fallos=(perfil.fallos||0)+1;
@@ -2062,7 +2165,7 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 
-/* Flujos de Tu espacio: activar, cambiar y quitar. */
+/* Flujos de Tu espacio: activar, cambiar y quitar; y «migrar», el paso obligatorio del PIN de 4. */
 let flujo=null;
 function openPinFlow(mode){
   if(!hayCrypto()){toast('El PIN necesita la app publicada (https)');return;}
@@ -2071,34 +2174,43 @@ function openPinFlow(mode){
 }
 function pasoPin(step,msg,ok){
   flujo.step=step;teclado=null;
-  const tit={activar:'Activar PIN',cambiar:'Cambiar PIN',quitar:'Quitar PIN'}[flujo.mode];
+  const migrar=flujo.mode==='migrar';
+  const tit={activar:'Activar PIN',cambiar:'Cambiar PIN',quitar:'Quitar PIN',migrar:'PIN nuevo'}[flujo.mode];
   let body='';
   if(step==='nombre')body='<h2>¿Cómo te llamas?</h2><p>Saldrá al abrir la app.</p><div class="field" style="width:100%;text-align:left"><label for="f-pnombre">Tu nombre</label><input type="text" id="f-pnombre" maxlength="30" autocomplete="given-name"></div><button class="btn primary" id="pinNombreOk">Seguir</button>';
-  else if(step==='aviso')body='<h2>Antes de activarlo</h2><div class="pinwarn">Si olvidas el PIN, la única forma de entrar es borrar los datos de este móvil y recuperar una copia. Guarda una copia antes.</div>'
+  else if(step==='aviso')body='<h2>Antes de activarlo</h2><div class="pinwarn"><b>Con PIN, tus datos se guardan cifrados.</b> Si lo olvidas, nadie puede recuperarlos: ni tú, ni nosotros. Solo podrás empezar de cero y recuperar una copia. Guarda una copia antes.</div>'
     +'<p class="pin-st">'+esc(ultimaCopiaTxt())+'</p><div class="row2" style="justify-content:center"><button class="btn sec" id="pinCopia">'+ico('descarga')+'Guardar copia ahora</button><button class="btn primary" id="pinActivar">Activar</button></div>';
-  else body='<h2>'+{actual:'Escribe tu PIN actual',elegir:'Elige un PIN de 4 cifras',repetir:'Repítelo'}[step]+'</h2>'+padHtml();
-  $('overlay').innerHTML='<div class="scrim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><div class="sheet-in">'
-    +'<div class="sheet-head"><button type="button" class="btn ghost" id="pinCancel">Cancelar</button><h3 id="sh-t">'+tit+'</h3><span class="sp"></span></div>'
+  else if(step==='trabajando')body='<h2>Cifrando tus datos…</h2><p>Un momento.</p>';
+  else body='<h2>'+{actual:'Escribe tu PIN actual',elegir:'Elige un PIN de 6 cifras',repetir:'Repítelo'}[step]+'</h2>'
+    +(migrar&&step==='elegir'?'<p>Ahora el PIN es de 6 cifras y cifra tus datos.</p>':'')+padHtml(step==='actual'?largoPin():PIN_LARGO);
+  $('overlay').innerHTML='<div class="scrim"'+(migrar?'':' data-close')+'></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><div class="sheet-in">'
+    +'<div class="sheet-head">'+(migrar?'<span class="sp"></span>':'<button type="button" class="btn ghost" id="pinCancel">Cancelar</button>')+'<h3 id="sh-t">'+tit+'</h3><span class="sp"></span></div>'
     +'<div class="pinbox" style="margin:8px auto 12px">'+body+'</div></div></div>';
   document.body.style.overflow='hidden';
   if(step==='nombre')$('f-pnombre').focus();
   if(step==='actual')padStart(async pin=>{
-    if(!(await pinCorrecto(pin))){padFallo('PIN incorrecto');return;}
-    if(flujo.mode==='quitar'){perfil.pin=null;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();finPin('PIN quitado');}
+    pinMsg('Comprobando…',true);
+    if(!(await verificarPin(pin))){padFallo('PIN incorrecto');return;}
+    if(flujo.mode==='quitar'){
+      try{if(perfil.pin.cifra)await quitarCifrado();else{perfil.pin=null;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();}finPin('PIN quitado');}
+      catch(e){padFallo('No se ha podido guardar en este móvil');}
+    }
     else pasoPin('elegir');
-  },msg,ok);
-  if(step==='elegir')padStart(pin=>{flujo.first=pin;pasoPin('repetir');},msg,ok);
+  },msg,ok,largoPin());
+  if(step==='elegir')padStart(pin=>{flujo.first=pin;pasoPin('repetir');},msg,ok,PIN_LARGO);
   if(step==='repetir')padStart(async pin=>{
     if(pin!==flujo.first){flujo.first='';pasoPin('elegir','No coinciden. Vuelve a elegirlo');return;}
     if(flujo.mode==='activar'){pasoPin('aviso');return;}
-    perfil.pin=await crearPin(pin);savePerfil();finPin('PIN cambiado');
-  },msg,ok);
+    const modo=flujo.mode;pasoPin('trabajando');
+    try{await cifrarConPin(pin);finPin(modo==='migrar'?'PIN cambiado: tus datos están cifrados':'PIN cambiado');}
+    catch(e){flujo.first='';pasoPin('elegir','No se ha podido cifrar: no cabe en este móvil');}
+  },msg,ok,PIN_LARGO);
 }
 function finPin(msg){flujo=null;teclado=null;openMe();toast(msg);}
 /* "Guardar copia ahora" sin salir del flujo; si el móvil no deja descargar, la hoja de copia. */
 async function copiaDesdeAviso(){
   const dl=await getDownloader();
-  try{await dl.save({filename:'comida-consciente-copia-'+TODAY+'.json',data:backupJson()});refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');pasoPin('aviso');}
+  try{await dl.save({filename:'comida-consciente-copia-'+TODAY+'.json',data:backupJson()});await refrescar();data.ultimaCopia=new Date().toISOString();await save();toast('Copia guardada');pasoPin('aviso');}
   catch(e){if(e&&e.code==='declined')return;flujo=null;openBackup('guardar');}
 }
 
@@ -2113,10 +2225,10 @@ document.addEventListener('click',e=>{
   if(t.dataset.key){padKey(t.dataset.key);return;}
   if(t.dataset.pinflow){openPinFlow(t.dataset.pinflow);return;}
   if(t.dataset.bloqueo){perfil.bloqueo=t.dataset.bloqueo;savePerfil();document.querySelectorAll('[data-bloqueo]').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return;}
-  if(t.id==='pinCancel'){flujo=null;teclado=null;openMe();return;}
+  if(t.id==='pinCancel'){if(flujo&&flujo.mode==='migrar')return;flujo=null;teclado=null;openMe();return;}
   if(t.id==='pinNombreOk'){const v=$('f-pnombre').value.replace(/\s+/g,' ').trim();if(!v){$('f-pnombre').focus();toast('Escribe tu nombre para seguir');return;}setNombre(v);pasoPin('elegir');return;}
   if(t.id==='pinCopia'){copiaDesdeAviso();return;}
-  if(t.id==='pinActivar'){t.disabled=true;crearPin(flujo.first).then(pn=>{perfil.pin=pn;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();finPin('PIN activado');});return;}
+  if(t.id==='pinActivar'){const pin=flujo.first;pasoPin('trabajando');cifrarConPin(pin).then(()=>finPin('PIN activado'),()=>{flujo.first='';pasoPin('elegir','No se ha podido cifrar: no cabe en este móvil');});return;}
   if(t.id==='forgotBtn'){$('forgotBox').innerHTML='<div class="forgot"><span>Sin el PIN no se pueden ver los datos. Puedes borrar todo lo de este móvil y recuperar después tu última copia.</span><button class="btn danger" id="wipeBtn">Borrar todo y empezar</button></div>';return;}
   if(t.id==='wipeMe'){
     if(t.classList.contains('armed')){borrarTodo();return;}
@@ -2154,12 +2266,12 @@ document.addEventListener('click',e=>{
   if(t.id==='loadTxt'){const v=$('importTxt').value;if(!v.trim()){toast('Pega primero el texto de la copia');return;}parseImport(v);return;}
   if(t.id==='clearEx'){
     /* D17.11: quita solo los ejemplos; lo registrado de verdad se queda. */
-    if(t.dataset.armed){refrescar();quitarEjemplos(data);save();render();const n=Object.keys(data.ingestas).length;toastGuardado(n?'Ejemplos quitados. '+(n===1?'Tu registro se queda':'Tus '+n+' registros se quedan'):'Listo: empiezas en blanco');}
+    if(t.dataset.armed){(async()=>{await refrescar();quitarEjemplos(data);await save();render();const n=Object.keys(data.ingestas).length;toastGuardado(n?'Ejemplos quitados. '+(n===1?'Tu registro se queda':'Tus '+n+' registros se quedan'):'Listo: empiezas en blanco');})();}
     else{t.dataset.armed='1';t.textContent='¿Seguro? Pulsa otra vez';}
     return;
   }
   if(t.id==='delBtn'){
-    if(t.classList.contains('armed')){refrescar();delete data.ingestas[draft.id];save();close();render();toastGuardado('Registro borrado');}
+    if(t.classList.contains('armed')){const id=draft.id;(async()=>{await refrescar();delete data.ingestas[id];await save();close();render();toastGuardado('Registro borrado');})();}
     else{t.classList.add('armed');t.textContent='Pulsa otra vez para borrar';}
     return;
   }
@@ -2191,12 +2303,12 @@ document.addEventListener('click',e=>{
   if(t.dataset.eren){etqUi={ren:t.dataset.eren};pintarEtqHoja();return;}
   if(t.dataset.efus){etqUi={fus:t.dataset.efus};pintarEtqHoja();return;}
   if(t.dataset.eborrar){
-    if(etqUi.borrar===t.dataset.eborrar){borrarEtq(t.dataset.eborrar);etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta borrada');}
+    if(etqUi.borrar===t.dataset.eborrar){borrarEtq(t.dataset.eborrar).then(()=>{etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta borrada');});}
     else{etqUi.borrar=t.dataset.eborrar;pintarEtqHoja();}
     return;
   }
-  if(t.dataset.fusion){fusionarEtq(t.dataset.fusion,t.dataset.en);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
-  if(t.dataset.distintas){refrescar();data.etiquetasDistintas=(data.etiquetasDistintas||[]).concat([[t.dataset.distintas,t.dataset.y].sort()]);save();pintarEtqHoja();return;}
+  if(t.dataset.fusion){fusionarEtq(t.dataset.fusion,t.dataset.en).then(()=>{etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');});return;}
+  if(t.dataset.distintas){const par=[t.dataset.distintas,t.dataset.y].sort();(async()=>{await refrescar();data.etiquetasDistintas=(data.etiquetasDistintas||[]).concat([par]);await save();pintarEtqHoja();})();return;}
   if(t.id==='renOk'){renGuardar();return;}
   if(t.id==='renNo'){etqUi={};pintarEtqHoja();return;}
   if(t.hasAttribute('data-close')){close();return;}
@@ -2227,7 +2339,12 @@ document.addEventListener('input',e=>{
 });
 /* SEG-10: otra pestaña ha guardado. Sin nada a medias, se lee y se pinta; con una hoja abierta,
    lo hace refrescar() al guardar. */
-window.addEventListener('storage',e=>{if(e.key!==STORE&&e.key!==null)return;if(!$('overlay').innerHTML&&!bloqueada&&refrescar())render();});
+window.addEventListener('storage',e=>{
+  /* Si otra pestaña cambia el PIN o lo quita, esta vuelve a empezar (lo suyo ya está guardado). */
+  if(e.key===STORE+'-perfil'&&!draft){location.reload();return;}
+  if(e.key!==STORE&&e.key!==null)return;
+  if(!$('overlay').innerHTML&&!bloqueada)refrescar().then(c=>{if(c)render();});
+});
 /* Deslizar la tira de la semana cambia de semana. */
 let sw=null;
 document.addEventListener('touchstart',e=>{sw=e.target.closest('#week')?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
@@ -2256,7 +2373,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.id==='f-ren'){e.preventDefault();renGuardar();return;}
   if(e.key==='Enter'&&e.target.id==='f-buscar'){e.preventDefault();e.target.blur();return;}
   if(e.key==='Enter'&&e.target.id==='f-pnombre'){e.preventDefault();$('pinNombreOk').click();return;}
-  if(e.key==='Escape'&&$('overlay').innerHTML){const n=$('f-nombre');if(n)setNombre(n.value);close();}
+  if(e.key==='Escape'&&$('overlay').innerHTML){if(flujo&&flujo.mode==='migrar')return;const n=$('f-nombre');if(n)setNombre(n.value);close();}
   if(e.key==='Enter'&&e.target.id==='f-nombre'){e.preventDefault();e.target.blur();}
 });
 
