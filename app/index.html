@@ -1663,7 +1663,7 @@ function dayFull(f,lvl,xs,di){
   });
   const c=cierreRows(di||{}).filter(r=>r[3]);
   if(c.length){L.push(h+'# Cierre del día');c.forEach(([,l,,v])=>L.push('- '+l+': '+v));L.push('');}
-  return L.join('\n');
+  return L.map(enUnaLinea).join('\n');
 }
 function dayShort(f,xs,di){
   const d=parse(f),L=[cap(DIAS[d.getDay()].slice(0,3))+' '+pad(d.getDate())+'/'+pad(d.getMonth()+1)];
@@ -1682,9 +1682,13 @@ function dayShort(f,xs,di){
   });
   const c=cierreRows(di||{}).filter(r=>r[3]).map(([,l,,v])=>l+': '+v);
   if(c.length)L.push('  Cierre: '+c.join(' · '));
-  return L.join('\n');
+  return L.map(enUnaLinea).join('\n');
 }
-function csvCell(v){v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+/* D17.13: una celda que empieza por = + - @, tabulador o \r lleva ' delante para que Excel o
+   Numbers no la calculen como fórmula (OWASP); \r también se entrecomilla. */
+function csvCell(v){v=String(v??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+/* SEG-16: en Completo y Resumido, un texto de varias líneas sale en una sola, con « / ». */
+const enUnaLinea=t=>String(t).replace(/[ \t]*[\r\n]+[ \t]*/g,' / ');
 function exportText(fmt){
   /* «Esta lista» (Resultados): solo esas ingestas, en su orden por día, sin cierres. */
   /* Los datos de ejemplo nunca se exportan (D17.11). «Esta lista» va sin cierres. */
