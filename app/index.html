@@ -642,7 +642,15 @@ function load(){
   try{const raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(d&&d.ingestas){normData(d);return d;}}}catch(e){}
   return seed();
 }
-function save(){try{localStorage.setItem(STORE,JSON.stringify(data));}catch(e){}}
+/* SEG-02: si el navegador no deja guardar (lleno o bloqueado), se dice; nunca «Guardado» sin haberlo. */
+let guardadoFalla=false;
+function save(){
+  try{localStorage.setItem(STORE,JSON.stringify(data));guardadoFalla=false;}catch(e){guardadoFalla=true;}
+  const b=$('banner');if(b)b.innerHTML=bannerHtml();
+  return !guardadoFalla;
+}
+/* El aviso de éxito de algo que se ha guardado: si no se ha podido, lo dice. */
+const toastGuardado=m=>toast(guardadoFalla?'No se ha podido guardar':m);
 function saveUi(){try{localStorage.setItem(STORE+'-ui',JSON.stringify({sec:ui.sec,cal:ui.cal,pat:ui.pat,posponer:ui.posponer}));}catch(e){}}
 function savePerfil(){try{localStorage.setItem(STORE+'-perfil',JSON.stringify(perfil));}catch(e){}}
 
@@ -795,6 +803,7 @@ function render(){
   document.querySelectorAll('.bar .sec').forEach(b=>{if(b.dataset.sec===ui.sec)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
 }
 function bannerHtml(){
+  if(guardadoFalla)return '<div class="banner" role="alert"><span>No se ha podido guardar en este móvil. Guarda una copia antes de cerrar la app.</span><div class="row2"><button class="btn primary small" id="bannerBackup">Guardar copia</button></div></div>';
   if(data.ejemplos)return '<div class="banner"><span>Estás viendo <b>datos de ejemplo</b>.</span><div class="row2"><button class="btn primary small" id="clearEx">Empezar en blanco</button></div></div>';
   const reales=Object.values(data.ingestas).filter(x=>!x.ejemplo).length;
   const dias=data.ultimaCopia?Math.floor((Date.now()-new Date(data.ultimaCopia).getTime())/864e5):null;
@@ -1368,9 +1377,9 @@ function renGuardar(){
   const de=etqUi.ren,v=$('f-ren').value,n=limpiarEtq(v),k=claveEtq(n);if(!de||!n)return;
   const ex=catalogoEtq().find(c=>c.clave===k&&c.clave!==de);
   if(ex&&!etqUi.renAviso){etqUi.renAviso='Ya existe «'+ex.nombre+'»: se fusionarán las dos.';etqUi.renVal=v;pintarEtqHoja();return;}
-  if(ex){fusionarEtq(de,k);etqUi={};pintarEtqHoja();render();toast('Etiquetas fusionadas');return;}
+  if(ex){fusionarEtq(de,k);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
   reescribirEtq(l=>l.map(t=>claveEtq(t)===de?n:t));cambiarClave(de,k);save();
-  etqUi={};pintarEtqHoja();render();toast('Etiqueta renombrada');
+  etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta renombrada');
 }
 
 /* ---------- hoja: ingesta ---------- */
@@ -1495,8 +1504,8 @@ function saveIngesta(){
   delete x.ejemplo;
   data.ingestas[x.id]=x;save();
   /* Desde Resultados se vuelve a Resultados, recalculado (§3.14). */
-  if(volverRes){volverRes=false;close();render();toast('Guardado');return;}
-  close();ui.sec='hoy';ui.cursor=x.fecha;saveUi();render();toast('Guardado');
+  if(volverRes){volverRes=false;close();render();toastGuardado('Guardado');return;}
+  close();ui.sec='hoy';ui.cursor=x.fecha;saveUi();render();toastGuardado('Guardado');
 }
 
 /* ---------- hoja: cierre del día ---------- */
@@ -1531,7 +1540,7 @@ function saveDay(){
   const cal=readPick('suenoCalidad')[0];if(cal)o.suenoCalidad=cal;
   const prev=data.dias[ui.cursor]||{};if(prev.aguaTexto&&o.agua==null)o.aguaTexto=prev.aguaTexto;
   if(Object.keys(o).length)data.dias[ui.cursor]=o;else delete data.dias[ui.cursor];
-  save();close();render();toast('Guardado');
+  save();close();render();toastGuardado('Guardado');
 }
 
 /* ---------- exportar ---------- */
@@ -1806,9 +1815,12 @@ function mergeImport(o){
   return {next,nuevas,completadas,dias,nombre};
 }
 function doImport(){
-  data=pendingImport.next;
+  const antes=data;data=pendingImport.next;
+  /* Si la copia no cabe, no se cambia nada: lo de antes sigue guardado tal cual. */
+  if(!save()){data=antes;guardadoFalla=false;pendingImport=null;$('banner').innerHTML=bannerHtml();
+    $('importMsg').innerHTML='<div class="confirm" role="alert"><span>La copia no cabe en este móvil y no se ha recuperado nada. Tus datos siguen como estaban.</span></div>';return;}
   if(pendingImport.nombre){perfil.nombre=pendingImport.nombre;savePerfil();}
-  save();pendingImport=null;close();render();toast('Copia recuperada');
+  pendingImport=null;close();render();toast('Copia recuperada');
 }
 
 /* ---------- PIN (D14) ----------
@@ -1983,12 +1995,12 @@ document.addEventListener('click',e=>{
   if(t.id==='showBackupText'){showBackupText();return;}
   if(t.id==='loadTxt'){const v=$('importTxt').value;if(!v.trim()){toast('Pega primero el texto de la copia');return;}parseImport(v);return;}
   if(t.id==='clearEx'){
-    if(t.dataset.armed){data={ingestas:{},dias:{},ejemplos:false,etiquetasDistintas:[],ultimaCopia:data.ultimaCopia||null};save();render();toast('Listo: empiezas en blanco');}
+    if(t.dataset.armed){data={ingestas:{},dias:{},ejemplos:false,etiquetasDistintas:[],ultimaCopia:data.ultimaCopia||null};save();render();toastGuardado('Listo: empiezas en blanco');}
     else{t.dataset.armed='1';t.textContent='¿Seguro? Pulsa otra vez';}
     return;
   }
   if(t.id==='delBtn'){
-    if(t.classList.contains('armed')){delete data.ingestas[draft.id];save();close();render();toast('Registro borrado');}
+    if(t.classList.contains('armed')){delete data.ingestas[draft.id];save();close();render();toastGuardado('Registro borrado');}
     else{t.classList.add('armed');t.textContent='Pulsa otra vez para borrar';}
     return;
   }
@@ -2020,11 +2032,11 @@ document.addEventListener('click',e=>{
   if(t.dataset.eren){etqUi={ren:t.dataset.eren};pintarEtqHoja();return;}
   if(t.dataset.efus){etqUi={fus:t.dataset.efus};pintarEtqHoja();return;}
   if(t.dataset.eborrar){
-    if(etqUi.borrar===t.dataset.eborrar){borrarEtq(t.dataset.eborrar);etqUi={};pintarEtqHoja();render();toast('Etiqueta borrada');}
+    if(etqUi.borrar===t.dataset.eborrar){borrarEtq(t.dataset.eborrar);etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta borrada');}
     else{etqUi.borrar=t.dataset.eborrar;pintarEtqHoja();}
     return;
   }
-  if(t.dataset.fusion){fusionarEtq(t.dataset.fusion,t.dataset.en);etqUi={};pintarEtqHoja();render();toast('Etiquetas fusionadas');return;}
+  if(t.dataset.fusion){fusionarEtq(t.dataset.fusion,t.dataset.en);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
   if(t.dataset.distintas){data.etiquetasDistintas=(data.etiquetasDistintas||[]).concat([[t.dataset.distintas,t.dataset.y].sort()]);save();pintarEtqHoja();return;}
   if(t.id==='renOk'){renGuardar();return;}
   if(t.id==='renNo'){etqUi={};pintarEtqHoja();return;}
