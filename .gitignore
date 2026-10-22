@@ -12,3 +12,18 @@ diario/
 
 # macOS
 .DS_Store
+
+# Copias y exportaciones de la app: datos reales, NUNCA en este repo (D9, SEG-23)
+comida-app-*.json
+comida-app-*.csv
+comida-app-*.md
+comida-app-*.txt
+comida-consciente-*.json
+comida-consciente-*.csv
+comida-consciente-*.md
+comida-consciente-*.txt
+
+# Secretos y ajustes locales
+.env
+.env.*
+.claude/settings.local.json
