@@ -619,7 +619,8 @@ function isoWeek(d){
   t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
   return Math.ceil(((t-Date.UTC(t.getUTCFullYear(),0,1))/864e5+1)/7);
 }
-const TODAY=iso(new Date());
+/* SEG-07: «hoy» se vuelve a mirar al pintar, al registrar y al volver a la app (ponerHoy). */
+let TODAY=iso(new Date());
 
 /* ---------- estado ---------- */
 const uid=()=>Math.random().toString(36).slice(2,10);
@@ -840,7 +841,16 @@ const inicial=()=>perfil.nombre?perfil.nombre.trim()[0].toUpperCase():'';
 
 /* ---------- pintar ---------- */
 const $=id=>document.getElementById(id);
+/* Si ha cambiado el día con la app abierta: quien estaba viendo hoy pasa al día nuevo;
+   quien miraba otro día a propósito se queda donde estaba. */
+function ponerHoy(){
+  const h=iso(new Date());if(h===TODAY)return false;
+  if(ui.cursor===TODAY)ui.cursor=h;
+  if(exp.ref===TODAY)exp.ref=h;
+  TODAY=h;return true;
+}
 function render(){
+  ponerHoy();
   const hoyD=parse(TODAY);
   const me=inicial();
   $('top').innerHTML='<div class="tt">'+(ui.sec==='hoy'
@@ -1437,6 +1447,7 @@ function renGuardar(){
 /* ---------- hoja: ingesta ---------- */
 let draft=null;
 function openIngesta(id,tipo,part){
+  if(ponerHoy())render();
   const now=new Date();
   volverRes=!!id&&ui.sec==='pat'&&pat.vista==='res';
   draft=id?JSON.parse(JSON.stringify(data.ingestas[id])):Object.assign(ingVacia(),{id:null,fecha:ui.sec==='hoy'?ui.cursor:TODAY,tipo:tipo||guessTipo(now),hora:pad(now.getHours())+':'+pad(now.getMinutes()),alimentos:''});
@@ -1958,6 +1969,7 @@ function borrarTodo(){
   location.reload();
 }
 document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&ponerHoy()&&!bloqueada&&!$('overlay').innerHTML)render();
   if(!perfil.pin)return;
   if(document.visibilityState==='hidden'){
     salida=Date.now();
