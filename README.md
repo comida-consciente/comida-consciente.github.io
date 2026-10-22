@@ -1,66 +1,62 @@
-# Comida App — código
+# Comida Consciente
 
-Registro de alimentación y estado emocional. Local, sin cuentas y sin nube: cada
-móvil es una persona.
+Registro de lo que comes y de cómo te sientes antes y después. **Para darte cuenta, no para
+controlar**: no cuenta calorías, no pone notas y no juzga.
 
-**La documentación vive en el vault**, no aquí: `../Vault_Proyectos/Comida_App/`.
-Empezar por `Comida_App.md`. Este repo es sólo la implementación.
+**Pruébala:** https://comida-consciente.github.io/ — funciona en el navegador del móvil. En
+iPhone, añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio») para que
+Safari no borre los datos.
+
+**Privacidad:** todo se guarda en tu navegador, en tu móvil. No hay servidor, ni cuentas, ni
+analítica: la página no se conecta a ningún sitio, y su política de seguridad (CSP) se lo
+impide al propio navegador. Tus datos solo salen si tú guardas una copia o exportas.
+
+**Licencia:** © 2026 Iñigo Caraballo. Todos los derechos reservados (ver [`LICENSE`](LICENSE)):
+el código se puede leer, pero no reutilizar. Las fuentes de `fonts/` van con su propia
+licencia (SIL Open Font License). Sin garantía de ningún tipo.
+
+---
+
+## Para desarrollar
+
+**La documentación vive en el vault** (privado), no aquí: `../Vault_Proyectos/Comida_Consciente/`.
+Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 | En el vault | Qué es |
 |---|---|
-| `Diseño/CA-Especificacion-App-Registro.md` | **La app de registro**: pantallas, datos, exportación, diseño y plan. Con su prototipo `CA-Prototipo-v0.4.html` (salvo en lo que cambia D13, donde manda `app/`) |
-| `Tareas/CA-Instrucciones.md` | Principios no negociables, qué **no** construir, cómo registrar y, al final, el **banco de ideas** (decisiones abiertas y pendientes) |
-| `Diseño/CA-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
-| `Diseño/CA-Decisiones.md` | Las dieciséis decisiones (D1–D16), con su motivo |
-| `Diseño/CA-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
-| `Versiones/` | Histórico de builds: `CA-2026-09-v0.1` y de la `v0.5` a la `v0.8` |
-| `QA/` | Bugs activos, sin verificar, resueltos y compatibilidad |
+| `Diseño/CC-Especificacion-App-Registro.md` | **La app**: pantallas, datos, exportación, diseño y plan |
+| `Tareas/CC-Instrucciones.md` | Principios no negociables, qué **no** construir y, al final, el **banco de ideas** |
+| `Diseño/CC-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
+| `Diseño/CC-Decisiones.md` | Las decisiones (D1–D17), con su motivo |
+| `Diseño/CC-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
+| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.9` |
+| `QA/` | Bugs, compatibilidad y la revisión de seguridad (`CC-Revision-Publicacion`) |
 | `fixtures/` | Contrato de aceptación del parser y del validador |
 
-## Estado
+## La app (`index.html`)
 
-| Punto | Qué | Estado |
-|---|---|---|
-| 1 | `esquema/` — JSON Schema + vocabularios cerrados | ✅ v0.1 |
-| 2 | `parser/` — dataframe *tidy*, parquet y SQLite | ✅ v0.1 |
-| 3 | `validar.py` — erratas, vocabulario y campos ausentes | ✅ v0.1 |
-| — | `visor/` — página local de revisión (calendario + día) | ✅ v0.1 |
-| 4 | `app/` — captura en el móvil | 🟡 **v0.8.1** publicada (Patrones, etiquetas y saciedad, D16); después, PWA |
-| 5 | Calendario de revisión (Hoy con la semana; Mes y Año) | 🟡 dentro de `app/` |
-| 6 | Vistas de análisis | 🟡 sección **Patrones** en la app (D16), con aviso hasta las 6 semanas |
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.9**: el
+diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16) y la revisión de
+seguridad antes de publicar (D17). Guarda en el `localStorage` del navegador: cada móvil tiene
+sus propios datos (D12). La copia de seguridad es `version: 3`.
 
-Desde el 23-09-2026 la fuente de verdad es la app (D1 revisada) y la Fase 0 en
-Obsidian queda sustituida por registrar con el prototipo (D10). `validar.py`,
-`parsear.py` y el visor siguen sirviendo sobre los `.md` **exportados** desde la app.
+- **La clave de guardado (`comida-app-proto-v1`) y la marca de la copia (`"app": "comida-app"`) no
+  se cambian** aunque la app se llame Comida Consciente: cambiarlas vaciaría los móviles e
+  invalidaría las copias guardadas.
+- **CSP con hash.** El `<meta http-equiv="Content-Security-Policy">` solo deja ejecutar el script
+  cuyo hash SHA-256 lleva dentro. **Cada cambio del `<script>` cambia el hash**: hay que
+  recalcularlo con `python3 tests/csp.py --escribir`. El test `tests/test_csp.py` falla si no
+  coincide, así que no se puede publicar roto sin darse cuenta.
+- Las fuentes están en `fonts/` (sin Google Fonts). No se carga nada de fuera.
+- Para probarla en local: `python3 -m http.server` en la raíz del repo y abrir
+  `http://127.0.0.1:8000/`. El PIN necesita `localhost` o https (Web Crypto), no `file://`.
 
-Los siete puntos abiertos de la especificación se cerraron el 24-09-2026 (D13) y están en
-la v0.5; la v0.6 (27-09-2026) rehace el aspecto con D15, la v0.7 añade el PIN (D14) y la v0.8 (28-09-2026) Patrones, etiquetas y saciedad (D16). Lo siguiente, en orden (banco de ideas §4.2 de `Tareas/CA-Instrucciones.md`):
-modelo canónico con los vocabularios leídos del esquema, fuentes empaquetadas, IndexedDB,
-*service worker* y tests de los formatos de exportación.
+## Las herramientas de Python
 
-## La app (`app/`)
-
-`app/index.html` es la **v0.8.1**: el rediseño «Sereno» de D15 (v0.6) sobre la v0.5 (prototipo v0.4
-más D13), el **PIN opcional** de D14 (v0.7) y **Patrones, etiquetas y «¿Cómo me he quedado?»** de D16
-(v0.8). Tres secciones con una barra flotante abajo: **Hoy** (la semana en una tira con su
-número ISO y el día como una línea de tiempo con un icono por comida), **Calendario** (Mes
-con la columna de semanas, y Año) y **Patrones** (Resumen con seis tarjetas, y Buscar), con
-**Registrar** como botón redondo a la derecha. La copia es `version: 3`. La cabecera saluda por el
-nombre y lleva Exportar y **Tu espacio** (nombre y copia de seguridad; la copia lleva
-`perfil: { nombre }`). Los campos de los formularios, los formatos de exportación y la
-fusión de copias no cambian respecto a la v0.5. El PIN (v0.7) es de 4 cifras, opcional y
-apagado por defecto: tapa la app al abrirla y al volver a ella, **no cifra** los datos; se guarda
-como hash PBKDF2 y nunca va en la copia. Necesita https o `localhost` (Web Crypto): para
-probarlo en local, `python3 -m http.server` dentro de `app/`, no `file://`. Un solo fichero, se abre en el navegador
-tal cual. Publicado con GitHub Pages en
-https://icaraballo.github.io/Comida_App/app/ — el repo es público de momento para
-poder servirlo; no lleva datos reales. Guarda en el `localStorage` del navegador, así que
-cada móvil tiene sus propios datos y no salen de ahí salvo al exportar o guardar
-copia. Todavía carga las fuentes de Google Fonts, y los vocabularios están escritos en el
-JS guardando las etiquetas visibles en vez de los valores canónicos del esquema: las dos
-cosas se arreglan camino de la PWA. Para guardar
-archivos usa la función de Claude.ai si está dentro; fuera, en el móvil, la hoja
-de compartir del sistema y, si no, una descarga normal (`getDownloader()`).
+Son de la **v0.1**, de cuando el registro se hacía en notas de Obsidian: leen el **formato del
+diario** (una nota por día con frontmatter YAML, como `fixtures/diario/`). **La app todavía no
+exporta en ese formato**: su «Completo» es markdown para leer, sin YAML. Exportar en formato
+diario está en el banco de ideas (D17.14).
 
 ## Uso
 
@@ -83,7 +79,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 `validar.py` sale con código 1 si hay **errores**. Los avisos nunca hacen fallar
 nada: avisar de un campo ausente no es rechazar la entrada (principio 3 de
-`Tareas/CA-Instrucciones.md`). Salida en formato de compilador, `fichero:línea:`,
+`Tareas/CC-Instrucciones.md`). Salida en formato de compilador, `fichero:línea:`,
 que VS Code hace clicable:
 
 ```
@@ -101,7 +97,7 @@ emocional y pensamientos: la superficie de exposición es cero por defecto (D9).
 Hay un test que lo comprueba en cada ejecución.
 
 Enseña **calendario y día**, y ni un gráfico de patrones. No es una limitación
-técnica: `Diseño/CA-Analisis.md` pide 4–6 semanas de registro antes de mirar nada.
+técnica: `Diseño/CC-Analisis.md` pide 4–6 semanas de registro antes de mirar nada.
 Y los días se colorean sólo por *si hay registro*, nunca por cómo fue el día —
 un semáforo de "buen día / mal día" está expresamente prohibido en las
 instrucciones del proyecto.
@@ -128,12 +124,12 @@ visor/
   plantilla.py       la página: HTML, CSS y JS en un fichero
   generar.py         escribe el visor
 validar.py  parsear.py  ver.py     las tres CLIs
-tests/                             contrato de aceptación (59 tests)
+tests/                             contrato de aceptación (los fixtures, el CSP de la app)
 ```
 
 Ningún enum está escrito a mano en el código: `esquema/__init__.py` los lee de
 `dia.schema.json`, y hasta el mapa campo→vocabulario se deriva de sus `$ref`.
-Para añadir un valor al vocabulario se toca `Diseño/CA-Esquema-de-Datos.md` (el
+Para añadir un valor al vocabulario se toca `Diseño/CC-Esquema-de-Datos.md` (el
 vault) y luego `dia.schema.json`, **en ese orden**.
 
 ## Tests
@@ -144,7 +140,7 @@ vault) y luego `dia.schema.json`, **en ese orden**.
 
 Los fixtures **no se copian aquí**: son el contrato de aceptación y viven junto a
 la documentación que los explica, en el vault. Los tests los buscan al lado
-(`../Vault_Proyectos/Comida_App/fixtures`) y se saltan solos si no están. Para
+(`../Vault_Proyectos/Comida_Consciente/fixtures`) y se saltan solos si no están. Para
 apuntar a otro sitio:
 
 ```bash
@@ -160,10 +156,10 @@ Las dos corrompen en silencio, sin dar error, y las dos están cubiertas:
 - `hambre_antes: no` sin comillas se lee como el **booleano `False`** (la lista
   de PyYAML incluye `yes`/`no`/`on`/`off`), y `no` es un valor del vocabulario
   `hambre`. Se deshace en `esquema.destrampar()`, en un único sitio.
-  **Decidido** (D13, opción B): la exportación a markdown de la app pone las comillas.
+  Lo cubre el validador para las notas del diario. (La app todavía no exporta en este formato:
+  ver «Las herramientas de Python», arriba.)
 
 ## Privacidad
 
-Aquí no entra ni un dato real: `diario/` y `derivado/` están en `.gitignore`.
-Los registros viven en el móvil de cada persona (D1, D12) y las copias de
-seguridad no se suben aquí.
+Aquí no entra ni un dato real: `diario/`, `derivado/`, las copias y las exportaciones de la
+app están en `.gitignore`. Los registros viven en el móvil de cada persona (D1, D12).
