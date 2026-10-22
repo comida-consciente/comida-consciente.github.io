@@ -642,15 +642,22 @@ try{const u=JSON.parse(localStorage.getItem(STORE+'-ui')||'null');if(u){if(u.sec
 
 function load(){
   let raw=null;
-  try{raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){normData(d);return d;}}}catch(e){}
+  try{raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){normData(d);ultimoRaw=raw;return d;}}}catch(e){}
   /* Si había algo y no se ha podido leer, se guarda aparte tal cual antes de que nada lo pise. */
   if(raw){try{if(!localStorage.getItem(STORE+'-roto'))localStorage.setItem(STORE+'-roto',raw);}catch(e){}}
   return seed();
 }
 /* SEG-02: si el navegador no deja guardar (lleno o bloqueado), se dice; nunca «Guardado» sin haberlo. */
 let guardadoFalla=false;
+/* SEG-10: lo último que esta pestaña ha leído o escrito. Si otra pestaña ha guardado después,
+   refrescar() lo vuelve a leer antes de cambiar nada, para no pisarlo. */
+let ultimoRaw=null;
+function refrescar(){
+  try{const raw=localStorage.getItem(STORE);if(raw&&raw!==ultimoRaw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;return true;}}}catch(e){}
+  return false;
+}
 function save(){
-  try{localStorage.setItem(STORE,JSON.stringify(data));guardadoFalla=false;}catch(e){guardadoFalla=true;}
+  try{const raw=JSON.stringify(data);localStorage.setItem(STORE,raw);ultimoRaw=raw;guardadoFalla=false;}catch(e){guardadoFalla=true;}
   const b=$('banner');if(b)b.innerHTML=bannerHtml();
   return !guardadoFalla;
 }
@@ -1390,10 +1397,11 @@ function cambiarClave(de,a){
   data.etiquetasDistintas=(data.etiquetasDistintas||[]).map(p=>p.map(k=>k===de?a:k)).filter(p=>p[0]&&p[1]&&p[0]!==p[1]);
 }
 function fusionarEtq(de,a){
+  refrescar();
   const dest=catalogoEtq().find(c=>c.clave===a);if(!dest||de===a)return;
   reescribirEtq(l=>l.map(t=>claveEtq(t)===de?dest.nombre:t));cambiarClave(de,a);save();
 }
-function borrarEtq(k){reescribirEtq(l=>l.filter(t=>claveEtq(t)!==k));cambiarClave(k,'');save();}
+function borrarEtq(k){refrescar();reescribirEtq(l=>l.filter(t=>claveEtq(t)!==k));cambiarClave(k,'');save();}
 function openEtq(){
   if(!catalogoEtq().length){openMe();return;}
   if(!$('etqSheet')){
@@ -1440,7 +1448,7 @@ function renGuardar(){
   const ex=catalogoEtq().find(c=>c.clave===k&&c.clave!==de);
   if(ex&&!etqUi.renAviso){etqUi.renAviso='Ya existe «'+ex.nombre+'»: se fusionarán las dos.';etqUi.renVal=v;pintarEtqHoja();return;}
   if(ex){fusionarEtq(de,k);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
-  reescribirEtq(l=>l.map(t=>claveEtq(t)===de?n:t));cambiarClave(de,k);save();
+  refrescar();reescribirEtq(l=>l.map(t=>claveEtq(t)===de?n:t));cambiarClave(de,k);save();
   etqUi={};pintarEtqHoja();render();toastGuardado('Etiqueta renombrada');
 }
 
@@ -1565,7 +1573,7 @@ function saveIngesta(){
   x.sintomas=readPick('sintomas');x.sintomasOtros=x.sintomas.includes('Otros')?$('f-sintomasOtros').value.trim():'';
   if(!x.id)x.id=uid();
   delete x.ejemplo;
-  data.ingestas[x.id]=x;save();
+  refrescar();data.ingestas[x.id]=x;save();
   /* Desde Resultados se vuelve a Resultados, recalculado (§3.14). */
   if(volverRes){volverRes=false;close();render();toastGuardado('Guardado');return;}
   close();ui.sec='hoy';ui.cursor=x.fecha;saveUi();render();toastGuardado('Guardado');
@@ -1601,6 +1609,7 @@ function saveDay(){
   const o={};['actividad','reflexiones','predominantes','orgullo','gratitud'].forEach(k=>{const v=$('d-'+k).value.trim();if(v)o[k]=v;});
   Object.keys(STEPS).forEach(k=>{const v=$('d-'+k).dataset.v;if(v!=='')o[k]=Number(v);});
   const cal=readPick('suenoCalidad')[0];if(cal)o.suenoCalidad=cal;
+  refrescar();
   const prev=data.dias[ui.cursor]||{};if(prev.aguaTexto&&o.agua==null)o.aguaTexto=prev.aguaTexto;
   if(Object.keys(o).length)data.dias[ui.cursor]=o;else delete data.dias[ui.cursor];
   save();close();render();toastGuardado('Guardado');
@@ -1810,7 +1819,7 @@ function backupJson(){
 async function saveBackup(){
   const json=backupJson(),name='comida-app-copia-'+TODAY+'.json';
   const dl=await getDownloader();
-  const done=()=>{data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');render();openBackup();};
+  const done=()=>{refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');render();openBackup();};
   const fallback=msg=>showBackupText(msg);
   if(!dl){fallback('Aquí no se puede descargar el archivo. Copia este texto y guárdalo en Notas o en un archivo .json:');return;}
   try{await dl.save({filename:name,data:json});done();}
@@ -1818,7 +1827,7 @@ async function saveBackup(){
 }
 function showBackupText(msg){
   $('saveFallback').innerHTML='<p class="status">'+esc(msg||'Copia este texto y guárdalo en Notas. Para recuperarlo, pégalo en «Recuperar copia → Desde texto».')+'</p><textarea class="export" id="expTxt" readonly>'+esc(JSON.stringify(JSON.parse(backupJson())))+'</textarea><button class="btn primary" id="copyBtn">Copiar texto</button>';
-  data.ultimaCopia=new Date().toISOString();save();render();
+  refrescar();data.ultimaCopia=new Date().toISOString();save();render();
 }
 function readImport(file){
   const r=new FileReader();
@@ -1833,7 +1842,7 @@ function parseImport(text){
     const noLeidos=m.malas?' '+(m.malas===1?'1 registro no se ha podido leer':m.malas+' registros no se han podido leer')+'.':'';
     const pl=(n,a,b)=>n+' '+(n===1?a:b);
     if(!m.nuevas&&!m.completadas&&!m.dias&&!m.nombre){pendingImport=null;$('importMsg').innerHTML='<div class="confirm"><span>Este móvil ya tiene todo lo que hay en esta copia ('+fecha+'). No hay nada que añadir.'+noLeidos+'</span></div>';return;}
-    pendingImport=m;
+    pendingImport=m;m.o=o;
     const q=[];if(m.nuevas)q.push('<b>'+pl(m.nuevas,'comida nueva','comidas nuevas')+'</b>');if(m.completadas)q.push('huecos en <b>'+pl(m.completadas,'comida','comidas')+'</b>');if(m.dias)q.push('<b>'+pl(m.dias,'cierre de día','cierres de día')+'</b>');if(m.nombre)q.push('tu nombre');
     $('importMsg').innerHTML='<div class="confirm"><span>Copia '+fecha+'. Se añade: '+q.join(', ')+'. Lo que ya está anotado no se cambia.'+noLeidos+'</span><div class="row2"><button class="btn primary small" id="doImport">Recuperar</button><button class="btn ghost small" id="cancelImport">Cancelar</button></div></div>';
   }catch(e){$('importMsg').innerHTML='<p class="status" style="color:var(--danger)">Eso no es una copia de Comida App. Usa el archivo .json o el texto completo que guardaste desde «Guardar copia».</p>';}
@@ -1884,6 +1893,7 @@ function mergeImport(o){
   return {next,nuevas,completadas,dias,nombre,malas,exportado:exp};
 }
 function doImport(){
+  if(refrescar())pendingImport=Object.assign(mergeImport(pendingImport.o),{o:pendingImport.o});
   const antes=data;data=pendingImport.next;
   /* Si la copia no cabe, no se cambia nada: lo de antes sigue guardado tal cual. */
   if(!save()){data=antes;guardadoFalla=false;pendingImport=null;$('banner').innerHTML=bannerHtml();
@@ -2016,7 +2026,7 @@ function finPin(msg){flujo=null;teclado=null;openMe();toast(msg);}
 /* "Guardar copia ahora" sin salir del flujo; si el móvil no deja descargar, la hoja de copia. */
 async function copiaDesdeAviso(){
   const dl=await getDownloader();
-  try{await dl.save({filename:'comida-app-copia-'+TODAY+'.json',data:backupJson()});data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');pasoPin('aviso');}
+  try{await dl.save({filename:'comida-app-copia-'+TODAY+'.json',data:backupJson()});refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');pasoPin('aviso');}
   catch(e){if(e&&e.code==='declined')return;flujo=null;openBackup('guardar');}
 }
 
@@ -2066,12 +2076,12 @@ document.addEventListener('click',e=>{
   if(t.id==='loadTxt'){const v=$('importTxt').value;if(!v.trim()){toast('Pega primero el texto de la copia');return;}parseImport(v);return;}
   if(t.id==='clearEx'){
     /* D17.11: quita solo los ejemplos; lo registrado de verdad se queda. */
-    if(t.dataset.armed){quitarEjemplos(data);save();render();const n=Object.keys(data.ingestas).length;toastGuardado(n?'Ejemplos quitados. '+(n===1?'Tu registro se queda':'Tus '+n+' registros se quedan'):'Listo: empiezas en blanco');}
+    if(t.dataset.armed){refrescar();quitarEjemplos(data);save();render();const n=Object.keys(data.ingestas).length;toastGuardado(n?'Ejemplos quitados. '+(n===1?'Tu registro se queda':'Tus '+n+' registros se quedan'):'Listo: empiezas en blanco');}
     else{t.dataset.armed='1';t.textContent='¿Seguro? Pulsa otra vez';}
     return;
   }
   if(t.id==='delBtn'){
-    if(t.classList.contains('armed')){delete data.ingestas[draft.id];save();close();render();toastGuardado('Registro borrado');}
+    if(t.classList.contains('armed')){refrescar();delete data.ingestas[draft.id];save();close();render();toastGuardado('Registro borrado');}
     else{t.classList.add('armed');t.textContent='Pulsa otra vez para borrar';}
     return;
   }
@@ -2108,7 +2118,7 @@ document.addEventListener('click',e=>{
     return;
   }
   if(t.dataset.fusion){fusionarEtq(t.dataset.fusion,t.dataset.en);etqUi={};pintarEtqHoja();render();toastGuardado('Etiquetas fusionadas');return;}
-  if(t.dataset.distintas){data.etiquetasDistintas=(data.etiquetasDistintas||[]).concat([[t.dataset.distintas,t.dataset.y].sort()]);save();pintarEtqHoja();return;}
+  if(t.dataset.distintas){refrescar();data.etiquetasDistintas=(data.etiquetasDistintas||[]).concat([[t.dataset.distintas,t.dataset.y].sort()]);save();pintarEtqHoja();return;}
   if(t.id==='renOk'){renGuardar();return;}
   if(t.id==='renNo'){etqUi={};pintarEtqHoja();return;}
   if(t.hasAttribute('data-close')){close();return;}
@@ -2137,6 +2147,9 @@ document.addEventListener('input',e=>{
   if(e.target.id==='f-ren'&&etqUi.renAviso){etqUi.renAviso='';$('renAviso').hidden=true;$('renOk').textContent='Guardar';return;}
   if(e.target.closest('#fIng'))resumenForm();
 });
+/* SEG-10: otra pestaña ha guardado. Sin nada a medias, se lee y se pinta; con una hoja abierta,
+   lo hace refrescar() al guardar. */
+window.addEventListener('storage',e=>{if(e.key!==STORE&&e.key!==null)return;if(!$('overlay').innerHTML&&!bloqueada&&refrescar())render();});
 /* Deslizar la tira de la semana cambia de semana. */
 let sw=null;
 document.addEventListener('touchstart',e=>{sw=e.target.closest('#week')?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
