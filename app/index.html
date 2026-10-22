@@ -623,7 +623,8 @@ const TODAY=iso(new Date());
 
 /* ---------- estado ---------- */
 const uid=()=>Math.random().toString(36).slice(2,10);
-let data=load();
+/* Se carga al final, cuando ya existen todas las funciones que sanean (D17.12). */
+let data;
 /* Perfil (D14): nombre y PIN. El PIN nunca se guarda en claro: sal + hash PBKDF2. */
 let perfil={nombre:'',pin:null,bloqueo:'5min',fallos:0,esperaHasta:0};
 try{
@@ -639,7 +640,10 @@ let ui={sec:'hoy',cal:'mes',pat:'resumen',cursor:TODAY,calCursor:TODAY.slice(0,8
 try{const u=JSON.parse(localStorage.getItem(STORE+'-ui')||'null');if(u){if(u.sec==='cal'||u.sec==='pat')ui.sec=u.sec;if(u.pat==='buscar')ui.pat='buscar';if(u.cal==='ano')ui.cal='ano';if(u.posponer)ui.posponer=u.posponer;}}catch(e){}
 
 function load(){
-  try{const raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(d&&d.ingestas){normData(d);return d;}}}catch(e){}
+  let raw=null;
+  try{raw=localStorage.getItem(STORE);if(raw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){normData(d);return d;}}}catch(e){}
+  /* Si había algo y no se ha podido leer, se guarda aparte tal cual antes de que nada lo pise. */
+  if(raw){try{if(!localStorage.getItem(STORE+'-roto'))localStorage.setItem(STORE+'-roto',raw);}catch(e){}}
   return seed();
 }
 /* SEG-02: si el navegador no deja guardar (lleno o bloqueado), se dice; nunca «Guardado» sin haberlo. */
@@ -722,7 +726,7 @@ function seed(){
 
 /* ---------- ayudas ---------- */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ico=(n,c)=>'<svg class="ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
+const ico=(n,c)=>'<svg class="ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+esc(n)+'"/></svg>';
 const byDay=f=>Object.values(data.ingestas).filter(x=>x.fecha===f).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99'));
 const countDay=f=>Object.values(data.ingestas).reduce((n,x)=>n+(x.fecha===f),0);
 /* Completa (D16): dónde, pantalla y etiquetas son contexto y no cuentan como «antes». */
@@ -754,10 +758,58 @@ function normDia(di){
   }
   return di;
 }
+/* ---------- sanear (D17.12) ----------
+   Lo que llega de una copia, o lo que ya hay guardado, se lleva campo a campo a su tipo: el campo
+   que no se entiende se queda vacío y el registro entra. Solo se aparta el registro sin id, sin
+   fecha válida o con un tipo que no existe. Nunca se usa un objeto de fuera tal cual (SEG-19). */
+const esObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+const RE_ID=/^[A-Za-z0-9_-]{1,40}$/;
+const idValido=v=>typeof v==='string'&&RE_ID.test(v)&&!(v in Object.prototype)&&v!=='__proto__'&&v!=='prototype';
+const fechaValida=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&iso(parse(v))===v;
+const txt=v=>typeof v==='string'?v:typeof v==='number'&&isFinite(v)?String(v):'';
+const uno=(v,opts)=>typeof v==='string'&&opts.includes(v)?v:'';
+const varios=(v,opts)=>Array.isArray(v)?[...new Set(v.filter(e=>typeof e==='string'&&opts.includes(e)))]:[];
+const horaValida=v=>{if(typeof v!=='string')return '';const m=v.match(/^(\d{2}):(\d{2})$/);return m&&+m[1]<24&&+m[2]<60?v:'';};
+function sanearIngesta(x){
+  if(!esObj(x)||!idValido(x.id)||!fechaValida(x.fecha)||!Object.hasOwn(TIPO_LBL,x.tipo))return null;
+  const etq=[],ks=new Set();
+  (Array.isArray(x.etiquetas)?x.etiquetas:[]).forEach(t=>{const n=limpiarEtq(txt(t)),k=claveEtq(n);if(k&&!ks.has(k)&&etq.length<ETQ_MAX){ks.add(k);etq.push(n);}});
+  const o=Object.assign(ingVacia(),{id:x.id,fecha:x.fecha,tipo:x.tipo,hora:horaValida(x.hora),alimentos:txt(x.alimentos),
+    hambre:uno(x.hambre,HAMBRE),lugar:uno(x.lugar,LUGAR),pantalla:uno(x.pantalla,['Sí','No']),
+    emoAntes:varios(x.emoAntes,EMOCIONES),emoAntesOtra:txt(x.emoAntesOtra),pensAntes:txt(x.pensAntes),
+    emoDespues:varios(x.emoDespues,EMOCIONES),emoDespuesOtra:txt(x.emoDespuesOtra),pensDespues:txt(x.pensDespues),
+    saciedad:uno(x.saciedad,SACIEDAD),energia:uno(x.energia,ENERGIA.concat('Otro')),energiaOtro:txt(x.energiaOtro),
+    sintomas:varios(x.sintomas,SINTOMAS.concat('Otros')),sintomasOtros:txt(x.sintomasOtros),etiquetas:etq});
+  if(x.ejemplo===true)o.ejemplo=true;
+  return o;
+}
+function sanearDia(di){
+  if(!esObj(di))return null;
+  const o={};
+  ['aguaTexto','actividad','reflexiones','predominantes','orgullo','gratitud'].forEach(k=>{const v=txt(di[k]);if(v)o[k]=v;});
+  if(typeof di.agua==='string')o.agua=di.agua;
+  normDia(o);
+  [['agua',STEPS.agua.max],['actividadHoras',STEPS.actividadHoras.max],['suenoHoras',STEPS.suenoHoras.max]].forEach(([k,max])=>{
+    if(k==='agua'&&typeof o.agua==='number')return;
+    const v=typeof di[k]==='string'&&di[k].trim()!==''?Number(di[k].replace(',','.')):di[k];
+    if(typeof v==='number'&&isFinite(v)&&v>=0&&v<=max)o[k]=v;
+  });
+  if(typeof o.agua!=='number')delete o.agua;
+  const cal=uno(di.suenoCalidad,CALIDAD);if(cal)o.suenoCalidad=cal;
+  if(di.ejemplo===true)o.ejemplo=true;
+  return o;
+}
+/* Al cargar: lo que no se puede leer no se borra, se aparta (no se pinta ni se exporta). */
 function normData(d){
-  Object.keys(d.ingestas).forEach(k=>{d.ingestas[k]=Object.assign(ingVacia(),d.ingestas[k]);});
-  d.dias=d.dias||{};Object.values(d.dias).forEach(normDia);
+  const ing=esObj(d.ingestas)?d.ingestas:{},dias=esObj(d.dias)?d.dias:{};
+  const apartados=Array.isArray(d.apartados)?d.apartados:[];
+  d.ingestas={};
+  Object.keys(ing).forEach(k=>{const x=sanearIngesta(ing[k]);if(x&&x.id===k)d.ingestas[k]=x;else apartados.push(ing[k]);});
+  d.dias={};
+  Object.keys(dias).forEach(f=>{const di=fechaValida(f)?sanearDia(dias[f]):null;if(di&&Object.keys(di).length)d.dias[f]=di;else if(!fechaValida(f))apartados.push({fecha:f,dia:dias[f]});});
+  if(apartados.length)d.apartados=apartados;else delete d.apartados;
   if(!Array.isArray(d.etiquetasDistintas))d.etiquetasDistintas=[];
+  d.etiquetasDistintas=d.etiquetasDistintas.filter(p=>Array.isArray(p)&&p.length===2&&p.every(k=>typeof k==='string'));
   return d;
 }
 const lower=v=>v?v.toLowerCase():'';
@@ -869,18 +921,18 @@ function ingItem(x){
   const ha=hasBefore(x),hd=hasAfter(x),hora=x.hora||'sin hora',lbl=TIPO_LBL[x.tipo];
   /* Sin nada anotado (solo tipo y hora): como un hueco, pero con su hora. */
   if(!x.alimentos&&!ha&&!hd)
-    return '<div class="ti t-'+x.tipo+'"><span class="dot d-gap">'+ico(x.tipo)+'</span><button class="gapc" data-edit="'+x.id+'"><span><b>'+lbl+'</b> · '+esc(hora)+' · sin anotar</span><span class="plus" aria-hidden="true">+</span></button></div>';
+    return '<div class="ti t-'+esc(x.tipo)+'"><span class="dot d-gap">'+ico(x.tipo)+'</span><button class="gapc" data-edit="'+esc(x.id)+'"><span><b>'+lbl+'</b> · '+esc(hora)+' · sin anotar</span><span class="plus" aria-hidden="true">+</span></button></div>';
   const head='<div class="chd"><span class="k">'+lbl+'</span><span class="h">'+esc(hora)+'</span>';
   if(completa(x)){
     const a=emoList(x.emoAntes,x.emoAntesOtra).join(', '),d=emoList(x.emoDespues,x.emoDespuesOtra).join(', ');
     const en=x.energia==='Otro'?x.energiaOtro:x.energia;
-    return '<div class="ti t-'+x.tipo+'"><span class="dot d-full">'+ico(x.tipo)+'</span><button class="card" data-edit="'+x.id+'">'+head+'</div>'
+    return '<div class="ti t-'+esc(x.tipo)+'"><span class="dot d-full">'+ico(x.tipo)+'</span><button class="card" data-edit="'+esc(x.id)+'">'+head+'</div>'
       +'<div class="food">'+esc(x.alimentos)+'</div><div class="cmeta">'+esc((a||'—')+' → '+(d||'—')+(en?' · energía '+en.toLowerCase():'')+(x.saciedad?' · '+lower(x.saciedad):''))+'</div></button></div>';
   }
   const tag=!ha&&!hd?'Falta el antes y el después':!hd?'Falta el después':!ha?'Falta el antes':'Faltan los alimentos';
-  const add=(lado,part)=>'<button class="half add '+lado+'" data-edit="'+x.id+'" data-part="'+part+'" aria-label="Añadir el '+part+' de '+esc(lbl)+'"><h5>'+(part==='antes'?'Antes':'Después')+'</h5>+ Añadir</button>';
-  return '<div class="ti t-'+x.tipo+'"><span class="dot d-half">'+ico(x.tipo)+'</span><div class="card open">'
-    +'<button class="hit" data-edit="'+x.id+'" aria-label="Editar '+esc(lbl+' '+hora)+'"></button><div class="body">'
+  const add=(lado,part)=>'<button class="half add '+lado+'" data-edit="'+esc(x.id)+'" data-part="'+part+'" aria-label="Añadir el '+part+' de '+esc(lbl)+'"><h5>'+(part==='antes'?'Antes':'Después')+'</h5>+ Añadir</button>';
+  return '<div class="ti t-'+esc(x.tipo)+'"><span class="dot d-half">'+ico(x.tipo)+'</span><div class="card open">'
+    +'<button class="hit" data-edit="'+esc(x.id)+'" aria-label="Editar '+esc(lbl+' '+hora)+'"></button><div class="body">'
     +head+'<span class="tag">'+tag+'</span></div>'
     +'<div class="food'+(x.alimentos?'':' none')+'">'+esc(x.alimentos||'Sin alimentos anotados')+'</div>'
     +'<div class="halves">'+(ha?halfHtml(x,'a'):add('a','antes'))+(hd?halfHtml(x,'d'):add('d','despues'))+'</div>'
@@ -1132,7 +1184,7 @@ function t3(P){
     const segs=orden.slice(0,3).map(([v,s])=>[v,s,[v]]).concat(resto.length?[['Otras',resto.reduce((a,r)=>a+r[1],0),resto.map(r=>r[0])]]:[]);
     return '<div class="t3f"><div class="t3h"><b>Con '+esc(lower(e))+'</b><span>'+plural(xs.length,'ingesta','ingestas')+'</span></div><div class="stack">'
       +segs.map(([v,s,lista])=>{const p=100*s/xs.length,pr=Math.round(p);
-        return verBtn({emoAntes:[e],emoDespues:lista},'Con '+lower(e)+' antes y '+(v==='Otras'?'otras emociones':lower(v))+' después',p>=18?esc(v)+' '+pctTxt(pr):'','sg e-'+(v==='Otras'?'otra':emoSlug(v)),'Con '+lower(e)+' antes, '+v+' después: '+pctTxt(pr),'flex:'+p.toFixed(2)+' 1 0');}).join('')
+        return verBtn({emoAntes:[e],emoDespues:lista},'Con '+lower(e)+' antes y '+(v==='Otras'?'otras emociones':lower(v))+' después',p>=18?esc(v)+' '+pctTxt(pr):'','sg e-'+(v==='Otras'?'otra':esc(emoSlug(v))),'Con '+lower(e)+' antes, '+v+' después: '+pctTxt(pr),'flex:'+p.toFixed(2)+' 1 0');}).join('')
       +'</div></div>';
   }).join('');
   return tarjeta(tit,sub,body);
@@ -1270,7 +1322,7 @@ function renderRes(){
 function comun(xs){
   const f=pat.filtros,top=vals=>{const m=new Map();vals.forEach(([k,t,c])=>{const e=m.get(k);if(e)e[2]++;else m.set(k,[t,c,1]);});return [...m.values()].sort((a,b)=>b[2]-a[2]).slice(0,3);};
   const filas=[];
-  if(!f.tipos.length)filas.push(['Momento',top(xs.map(x=>[x.tipo,TIPO_LBL[x.tipo]||x.tipo,'ct t-'+x.tipo]))]);
+  if(!f.tipos.length)filas.push(['Momento',top(xs.map(x=>[x.tipo,TIPO_LBL[x.tipo]||x.tipo,'ct t-'+esc(x.tipo)]))]);
   if(!f.hambre)filas.push(['Hambre',top(xs.filter(x=>x.hambre).map(x=>[x.hambre,hambreTxt(x.hambre)]))]);
   if(!f.emoDespues.length)filas.push(['Después',top(xs.flatMap(x=>emosDe(x,'d').map(e=>[e,e])))]);
   if(!f.saciedad)filas.push(['Cómo te quedaste',top(xs.filter(x=>x.saciedad).map(x=>[x.saciedad,x.saciedad]))]);
@@ -1282,7 +1334,7 @@ function comun(xs){
 }
 function resItem(x){
   const a=emoList(x.emoAntes,x.emoAntesOtra).join(', '),d=emoList(x.emoDespues,x.emoDespuesOtra).join(', ');
-  return '<button type="button" class="ritem t-'+x.tipo+'" data-edit="'+x.id+'"><span class="rdot">'+ico(x.tipo)+'</span><span class="rbody">'
+  return '<button type="button" class="ritem t-'+esc(x.tipo)+'" data-edit="'+esc(x.id)+'"><span class="rdot">'+ico(x.tipo)+'</span><span class="rbody">'
     +'<span class="rh"><span class="k">'+esc(TIPO_LBL[x.tipo]||x.tipo)+'</span><span class="h">'+esc(x.hora||'sin hora')+'</span>'+(x.hambre?'<span class="rhb">Hambre: '+esc(lower(x.hambre))+'</span>':'')+'</span>'
     +'<span class="food'+(x.alimentos?'':' none')+'">'+esc(x.alimentos||'Sin alimentos anotados')+'</span>'
     +(a||d||x.saciedad?'<span class="rem">'+esc(a||'—')+' → <b>'+esc(d||'—')+'</b>'+(x.saciedad?' · '+esc(lower(x.saciedad)):'')+'</span>':'')
@@ -1526,7 +1578,7 @@ function openDay(){
     +'</form></div>';
   document.body.style.overflow='hidden';
 }
-function stepOut(k,v){const has=v!=null&&v!=='';return '<output id="d-'+k+'" data-v="'+(has?v:'')+'" class="'+(has?'':'empty')+'">'+(has?STEPS[k].fmt(Number(v)):'Sin anotar')+'</output>';}
+function stepOut(k,v){const has=v!=null&&v!=='';return '<output id="d-'+k+'" data-v="'+(has?esc(v):'')+'" class="'+(has?'':'empty')+'">'+(has?STEPS[k].fmt(Number(v)):'Sin anotar')+'</output>';}
 function stepBy(k,dir){
   const o=$('d-'+k),c=STEPS[k],cur=o.dataset.v===''?null:Number(o.dataset.v);
   let v;
@@ -1766,12 +1818,13 @@ function parseImport(text){
   try{
     const o=JSON.parse(String(text).trim());
     if(!o||o.app!=='comida-app'||!Array.isArray(o.ingestas))throw 0;
-    const m=mergeImport(o),fecha=esc(new Date(o.exportado).toLocaleDateString('es-ES'));
+    const m=mergeImport(o),fecha=m.exportado?'del '+esc(new Date(m.exportado).toLocaleDateString('es-ES')):'sin fecha';
+    const noLeidos=m.malas?' '+(m.malas===1?'1 registro no se ha podido leer':m.malas+' registros no se han podido leer')+'.':'';
     const pl=(n,a,b)=>n+' '+(n===1?a:b);
-    if(!m.nuevas&&!m.completadas&&!m.dias&&!m.nombre){pendingImport=null;$('importMsg').innerHTML='<div class="confirm"><span>Este móvil ya tiene todo lo que hay en esta copia (del '+fecha+'). No hay nada que añadir.</span></div>';return;}
+    if(!m.nuevas&&!m.completadas&&!m.dias&&!m.nombre){pendingImport=null;$('importMsg').innerHTML='<div class="confirm"><span>Este móvil ya tiene todo lo que hay en esta copia ('+fecha+'). No hay nada que añadir.'+noLeidos+'</span></div>';return;}
     pendingImport=m;
     const q=[];if(m.nuevas)q.push('<b>'+pl(m.nuevas,'comida nueva','comidas nuevas')+'</b>');if(m.completadas)q.push('huecos en <b>'+pl(m.completadas,'comida','comidas')+'</b>');if(m.dias)q.push('<b>'+pl(m.dias,'cierre de día','cierres de día')+'</b>');if(m.nombre)q.push('tu nombre');
-    $('importMsg').innerHTML='<div class="confirm"><span>Copia del '+fecha+'. Se añade: '+q.join(', ')+'. Lo que ya está anotado no se cambia.</span><div class="row2"><button class="btn primary small" id="doImport">Recuperar</button><button class="btn ghost small" id="cancelImport">Cancelar</button></div></div>';
+    $('importMsg').innerHTML='<div class="confirm"><span>Copia '+fecha+'. Se añade: '+q.join(', ')+'. Lo que ya está anotado no se cambia.'+noLeidos+'</span><div class="row2"><button class="btn primary small" id="doImport">Recuperar</button><button class="btn ghost small" id="cancelImport">Cancelar</button></div></div>';
   }catch(e){$('importMsg').innerHTML='<p class="status" style="color:var(--danger)">Eso no es una copia de Comida App. Usa el archivo .json o el texto completo que guardaste desde «Guardar copia».</p>';}
 }
 /* Fusionar (decidido el 24-09-2026): lo que no está se añade y lo que está en blanco se
@@ -1780,7 +1833,7 @@ function parseImport(text){
 const vacio=v=>v==null||v===''||(Array.isArray(v)&&!v.length);
 function rellenar(cur,inc){
   let n=0;
-  Object.keys(inc).forEach(k=>{if(k==='id'||k==='ejemplo')return;if(vacio(cur[k])&&!vacio(inc[k])){cur[k]=inc[k];n++;}});
+  Object.keys(inc).forEach(k=>{if(k==='id'||k==='ejemplo')return;if(vacio(Object.hasOwn(cur,k)?cur[k]:null)&&!vacio(inc[k])){cur[k]=inc[k];n++;}});
   if(cur.aguaTexto&&cur.agua!=null){delete cur.aguaTexto;}
   return n;
 }
@@ -1791,20 +1844,24 @@ function mergeImport(o){
     Object.keys(next.dias).forEach(k=>{if(next.dias[k].ejemplo)delete next.dias[k];});
     next.ejemplos=false;
   }
-  let nuevas=0,completadas=0,dias=0;
+  let nuevas=0,completadas=0,dias=0,malas=0;
   o.ingestas.forEach(x=>{
-    if(!x||!x.id||!x.fecha)return;
-    const inc=Object.assign(ingVacia(),x);delete inc.ejemplo;
-    const cur=next.ingestas[x.id];
-    if(!cur){next.ingestas[x.id]=inc;nuevas++;}
+    const inc=sanearIngesta(x);
+    if(!inc){malas++;return;}
+    if(inc.ejemplo)return;
+    const cur=Object.hasOwn(next.ingestas,inc.id)?next.ingestas[inc.id]:null;
+    if(!cur){next.ingestas[inc.id]=inc;nuevas++;}
     else if(rellenar(cur,inc))completadas++;
   });
-  Object.entries(o.dias||{}).forEach(([f,di])=>{
-    const inc=normDia(Object.assign({},di));delete inc.ejemplo;
-    if(!next.dias[f]){if(Object.keys(inc).length){next.dias[f]=inc;dias++;}}
+  Object.entries(esObj(o.dias)?o.dias:{}).forEach(([f,di])=>{
+    const inc=fechaValida(f)?sanearDia(di):null;
+    if(!inc){malas++;return;}
+    if(inc.ejemplo)return;
+    if(!Object.hasOwn(next.dias,f)){if(Object.keys(inc).length){next.dias[f]=inc;dias++;}}
     else if(rellenar(next.dias[f],inc))dias++;
   });
-  if(o.exportado&&(!next.ultimaCopia||o.exportado>next.ultimaCopia))next.ultimaCopia=o.exportado;
+  const exp=typeof o.exportado==='string'&&!isNaN(new Date(o.exportado))?new Date(o.exportado).toISOString():null;
+  if(exp&&(!next.ultimaCopia||exp>next.ultimaCopia))next.ultimaCopia=exp;
   /* Las etiquetas se rellenan solo si aquí la lista está vacía (rellenar): no se mezclan listas. */
   const par=p=>Array.isArray(p)&&p.length===2?p.map(String).sort():null;
   const vistas=new Set((next.etiquetasDistintas||[]).map(p=>JSON.stringify(par(p))));
@@ -1812,7 +1869,7 @@ function mergeImport(o){
   (Array.isArray(o.etiquetasDistintas)?o.etiquetasDistintas:[]).map(par).filter(Boolean).forEach(p=>{const k=JSON.stringify(p);if(!vistas.has(k)){vistas.add(k);next.etiquetasDistintas.push(p);}});
   const nom=o.perfil&&typeof o.perfil.nombre==='string'?o.perfil.nombre.trim().slice(0,30):'';
   const nombre=!perfil.nombre&&nom?nom:'';
-  return {next,nuevas,completadas,dias,nombre};
+  return {next,nuevas,completadas,dias,nombre,malas,exportado:exp};
 }
 function doImport(){
   const antes=data;data=pendingImport.next;
@@ -1896,7 +1953,7 @@ function tickEspera(){
   paint();if(esperando())esperaTimer=setInterval(paint,1000);
 }
 function borrarTodo(){
-  [STORE,STORE+'-ui',STORE+'-perfil',STORE+'-fmt'].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+  [STORE,STORE+'-ui',STORE+'-perfil',STORE+'-fmt',STORE+'-roto'].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
   location.reload();
 }
 document.addEventListener('visibilitychange',()=>{
@@ -2098,6 +2155,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.id==='f-nombre'){e.preventDefault();e.target.blur();}
 });
 
+data=load();
 render();
 if(perfil.pin)bloquear();
 })();
