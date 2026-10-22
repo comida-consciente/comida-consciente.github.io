@@ -1626,7 +1626,7 @@ function rangeLabel(){
 const enOf=x=>x.energia==='Otro'?x.energiaOtro:x.energia;
 const sintOf=x=>x.sintomas.filter(v=>v!=='Otros').concat(x.sintomasOtros?[x.sintomasOtros]:[]);
 /* xs: las ingestas de ese día que se exportan (todas, salvo en «Esta lista», que va sin cierres). */
-function dayFull(f,lvl,xs){
+function dayFull(f,lvl,xs,di){
   const h='#'.repeat(lvl),L=[h+' '+cap(longDate(f)),''];
   (xs||byDay(f)).forEach(x=>{
     L.push(h+'# '+TIPO_LBL[x.tipo]+' · '+(x.hora||'sin hora'));
@@ -1641,12 +1641,11 @@ function dayFull(f,lvl,xs){
     if(x.etiquetas.length)L.push('- Etiquetas: '+x.etiquetas.join(', '));
     L.push('');
   });
-  const di=xs?{}:data.dias[f]||{};
-  const c=cierreRows(di).filter(r=>r[3]);
+  const c=cierreRows(di||{}).filter(r=>r[3]);
   if(c.length){L.push(h+'# Cierre del día');c.forEach(([,l,,v])=>L.push('- '+l+': '+v));L.push('');}
   return L.join('\n');
 }
-function dayShort(f,xs){
+function dayShort(f,xs,di){
   const d=parse(f),L=[cap(DIAS[d.getDay()].slice(0,3))+' '+pad(d.getDate())+'/'+pad(d.getMonth()+1)];
   (xs||byDay(f)).forEach(x=>{
     let t='  '+(x.hora||'--:--')+' '+TIPO_LBL[x.tipo]+' — '+(x.alimentos||'—');
@@ -1661,17 +1660,18 @@ function dayShort(f,xs){
     if(x.etiquetas.length)t+=' | '+x.etiquetas.map(e=>'#'+e.toLowerCase()).join(' ');
     L.push(t);
   });
-  const di=xs?{}:data.dias[f]||{};
-  const c=cierreRows(di).filter(r=>r[3]).map(([,l,,v])=>l+': '+v);
+  const c=cierreRows(di||{}).filter(r=>r[3]).map(([,l,,v])=>l+': '+v);
   if(c.length)L.push('  Cierre: '+c.join(' · '));
   return L.join('\n');
 }
 function csvCell(v){v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 function exportText(fmt){
   /* «Esta lista» (Resultados): solo esas ingestas, en su orden por día, sin cierres. */
-  const lista=exp.scope==='lista'?exp.xs.map(id=>data.ingestas[id]).filter(Boolean):null;
-  const days=lista?[...new Set(lista.map(x=>x.fecha))]:rangeDays().filter(f=>countDay(f)||data.dias[f]);
-  const de=f=>lista?lista.filter(x=>x.fecha===f):byDay(f);
+  /* Los datos de ejemplo nunca se exportan (D17.11). «Esta lista» va sin cierres. */
+  const lista=exp.scope==='lista'?exp.xs.map(id=>data.ingestas[id]).filter(x=>x&&!x.ejemplo):null;
+  const cierre=f=>lista?{}:(data.dias[f]&&!data.dias[f].ejemplo?data.dias[f]:{});
+  const de=f=>lista?lista.filter(x=>x.fecha===f):byDay(f).filter(x=>!x.ejemplo);
+  const days=lista?[...new Set(lista.map(x=>x.fecha))]:rangeDays().filter(f=>de(f).length||Object.keys(cierre(f)).length);
   if(fmt==='tabla'){
     /* saciedad y etiquetas (D16) van al final, para no mover las columnas que ya se usan. */
     const rows=[['fecha','hora','comida','alimentos','hambre_antes','lugar','pantalla','emociones_antes','pensamientos_antes','emociones_despues','pensamientos_despues','energia','sintomas','saciedad','etiquetas']];
@@ -1679,11 +1679,9 @@ function exportText(fmt){
     return rows.map(r=>r.map(csvCell).join(';')).join('\n');
   }
   if(!days.length)return rangeTitle()+'\n\n(Sin registros)';
-  if(lista&&fmt==='resumido')return rangeTitle()+'\n\n'+days.map(f=>dayShort(f,de(f))).join('\n\n');
-  if(lista)return '# '+rangeTitle()+'\n\n'+days.map(f=>dayFull(f,2,de(f))).join('\n');
-  if(fmt==='resumido')return rangeTitle()+'\n\n'+days.map(f=>dayShort(f)).join('\n\n');
-  if(exp.scope==='dia')return '# '+rangeTitle()+'\n\n'+dayFull(days[0],2).split('\n').slice(2).join('\n');
-  return '# '+rangeTitle()+'\n\n'+days.map(f=>dayFull(f,2)).join('\n');
+  if(fmt==='resumido')return rangeTitle()+'\n\n'+days.map(f=>dayShort(f,de(f),cierre(f))).join('\n\n');
+  if(exp.scope==='dia')return '# '+rangeTitle()+'\n\n'+dayFull(days[0],2,de(days[0]),cierre(days[0])).split('\n').slice(2).join('\n');
+  return '# '+rangeTitle()+'\n\n'+days.map(f=>dayFull(f,2,de(f),cierre(f))).join('\n');
 }
 function openExport(lista){
   /* Por defecto: desde Hoy, el día que se ve; desde Calendario, el mes o el año que se ve.
@@ -1792,7 +1790,9 @@ function openBackup(tab){
 }
 function backupJson(){
   /* v3 (D16): saciedad y etiquetas en cada ingesta, y las parejas de etiquetas «No son la misma». Nunca el PIN. */
-  const o={app:'comida-app',version:3,exportado:new Date().toISOString(),ingestas:Object.values(data.ingestas),dias:data.dias,etiquetasDistintas:data.etiquetasDistintas||[]};
+    /* Los datos de ejemplo nunca van en la copia (D17.11). */
+  const dias=Object.fromEntries(Object.entries(data.dias).filter(([,di])=>!di.ejemplo));
+  const o={app:'comida-app',version:3,exportado:new Date().toISOString(),ingestas:Object.values(data.ingestas).filter(x=>!x.ejemplo),dias,etiquetasDistintas:data.etiquetasDistintas||[]};
   if(perfil.nombre)o.perfil={nombre:perfil.nombre};
   return JSON.stringify(o,null,2);
 }
@@ -1837,13 +1837,14 @@ function rellenar(cur,inc){
   if(cur.aguaTexto&&cur.agua!=null){delete cur.aguaTexto;}
   return n;
 }
+function quitarEjemplos(d){
+  Object.keys(d.ingestas).forEach(k=>{if(d.ingestas[k].ejemplo)delete d.ingestas[k];});
+  Object.keys(d.dias).forEach(k=>{if(d.dias[k].ejemplo)delete d.dias[k];});
+  d.ejemplos=false;
+}
 function mergeImport(o){
   const next=JSON.parse(JSON.stringify(data));
-  if(next.ejemplos){
-    Object.keys(next.ingestas).forEach(k=>{if(next.ingestas[k].ejemplo)delete next.ingestas[k];});
-    Object.keys(next.dias).forEach(k=>{if(next.dias[k].ejemplo)delete next.dias[k];});
-    next.ejemplos=false;
-  }
+  if(next.ejemplos)quitarEjemplos(next);
   let nuevas=0,completadas=0,dias=0,malas=0;
   o.ingestas.forEach(x=>{
     const inc=sanearIngesta(x);
@@ -2052,7 +2053,8 @@ document.addEventListener('click',e=>{
   if(t.id==='showBackupText'){showBackupText();return;}
   if(t.id==='loadTxt'){const v=$('importTxt').value;if(!v.trim()){toast('Pega primero el texto de la copia');return;}parseImport(v);return;}
   if(t.id==='clearEx'){
-    if(t.dataset.armed){data={ingestas:{},dias:{},ejemplos:false,etiquetasDistintas:[],ultimaCopia:data.ultimaCopia||null};save();render();toastGuardado('Listo: empiezas en blanco');}
+    /* D17.11: quita solo los ejemplos; lo registrado de verdad se queda. */
+    if(t.dataset.armed){quitarEjemplos(data);save();render();const n=Object.keys(data.ingestas).length;toastGuardado(n?'Ejemplos quitados. '+(n===1?'Tu registro se queda':'Tus '+n+' registros se quedan'):'Listo: empiezas en blanco');}
     else{t.dataset.armed='1';t.textContent='¿Seguro? Pulsa otra vez';}
     return;
   }
