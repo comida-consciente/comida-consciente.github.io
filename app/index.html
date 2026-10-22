@@ -653,10 +653,11 @@ let guardadoFalla=false;
    refrescar() lo vuelve a leer antes de cambiar nada, para no pisarlo. */
 let ultimoRaw=null;
 function refrescar(){
-  try{const raw=localStorage.getItem(STORE);if(raw&&raw!==ultimoRaw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;return true;}}}catch(e){}
+  try{const raw=localStorage.getItem(STORE);if(raw&&raw!==ultimoRaw){const d=JSON.parse(raw);if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;datosVer++;return true;}}}catch(e){}
   return false;
 }
 function save(){
+  datosVer++;
   try{const raw=JSON.stringify(data);localStorage.setItem(STORE,raw);ultimoRaw=raw;guardadoFalla=false;}catch(e){guardadoFalla=true;}
   const b=$('banner');if(b)b.innerHTML=bannerHtml();
   return !guardadoFalla;
@@ -735,8 +736,20 @@ function seed(){
 /* ---------- ayudas ---------- */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=(n,c)=>'<svg class="ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+esc(n)+'"/></svg>';
-const byDay=f=>Object.values(data.ingestas).filter(x=>x.fecha===f).sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99'));
-const countDay=f=>Object.values(data.ingestas).reduce((n,x)=>n+(x.fecha===f),0);
+/* SEG-22: las ingestas agrupadas por fecha, calculado una vez y rehecho solo cuando cambian los
+   datos (save o refrescar suben datosVer). El Año y exportar un año ya no recorren todo por día. */
+let datosVer=0,idx=null;
+function porDia(){
+  if(!idx||idx.data!==data||idx.ver!==datosVer){
+    const m=new Map();
+    Object.values(data.ingestas).forEach(x=>{const l=m.get(x.fecha);if(l)l.push(x);else m.set(x.fecha,[x]);});
+    m.forEach(l=>l.sort((a,b)=>(a.hora||'99').localeCompare(b.hora||'99')));
+    idx={data,ver:datosVer,m};
+  }
+  return idx.m;
+}
+const byDay=f=>(porDia().get(f)||[]).slice();
+const countDay=f=>(porDia().get(f)||[]).length;
 /* Completa (D16): dónde, pantalla y etiquetas son contexto y no cuentan como «antes». */
 const hasAfter=x=>x.emoDespues.length||x.emoDespuesOtra||x.pensDespues||x.saciedad||x.energia||x.sintomas.length||x.sintomasOtros;
 const hasBefore=x=>x.hambre||x.emoAntes.length||x.emoAntesOtra||x.pensAntes;
