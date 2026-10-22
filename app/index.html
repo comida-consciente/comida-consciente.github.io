@@ -341,6 +341,11 @@ details.block.contexto > summary .bd{background:var(--ink-3)}
 .row2{display:flex;gap:8px;flex-wrap:wrap}
 .privacy{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink-2);margin:18px 4px 4px}
 .privacy .ico{color:var(--accent);margin-top:1px}
+/* D17.5: «Sobre esta app» en Tu espacio */
+details.sobre .inner p{font-size:14px;color:var(--ink-2)}
+details.sobre .inner p b{color:var(--ink)}
+details.sobre .inner a{color:var(--accent);font-weight:700}
+.vaciohoy{margin:0 2px 14px;font-size:14px;color:var(--ink-2)}
 .ver{font-size:12px;color:var(--ink-3);text-align:center;margin:10px 0 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;white-space:nowrap}
 /* ---------- Patrones (D16, §3.14) ---------- */
@@ -662,6 +667,14 @@ function save(){
   const b=$('banner');if(b)b.innerHTML=bannerHtml();
   return !guardadoFalla;
 }
+/* D17.8: pedir al navegador que no borre los datos solo, tras el primer registro (no al abrir:
+   algún navegador lo pregunta y no tiene sentido sin datos). */
+let persistPedida=false;
+function pedirPersistencia(){
+  if(persistPedida||!navigator.storage||!navigator.storage.persist)return;
+  persistPedida=true;
+  navigator.storage.persisted().then(p=>p||navigator.storage.persist()).catch(()=>{});
+}
 /* El aviso de éxito de algo que se ha guardado: si no se ha podido, lo dice. */
 const toastGuardado=m=>toast(guardadoFalla?'No se ha podido guardar':m);
 function saveUi(){try{localStorage.setItem(STORE+'-ui',JSON.stringify({sec:ui.sec,cal:ui.cal,pat:ui.pat,posponer:ui.posponer}));}catch(e){}}
@@ -886,7 +899,7 @@ function render(){
 }
 function bannerHtml(){
   if(guardadoFalla)return '<div class="banner" role="alert"><span>No se ha podido guardar en este móvil. Guarda una copia antes de cerrar la app.</span><div class="row2"><button class="btn primary small" id="bannerBackup">Guardar copia</button></div></div>';
-  if(data.ejemplos)return '<div class="banner"><span>Estás viendo <b>datos de ejemplo</b>.</span><div class="row2"><button class="btn primary small" id="clearEx">Empezar en blanco</button></div></div>';
+  if(data.ejemplos)return '<div class="banner"><span>Estás viendo <b>datos de ejemplo</b>. Lo que apuntes se queda solo en este móvil.</span><div class="row2"><button class="btn primary small" id="clearEx">Empezar en blanco</button></div></div>';
   const reales=Object.values(data.ingestas).filter(x=>!x.ejemplo).length;
   const dias=data.ultimaCopia?Math.floor((Date.now()-new Date(data.ultimaCopia).getTime())/864e5):null;
   if(reales<5||(dias!==null&&dias<7))return '';
@@ -910,6 +923,7 @@ function renderHoy(){
   const tit=dif===0?'Hoy':dif===1?'Ayer':DIAS[c.getDay()]+' '+c.getDate();
   h+='<div class="dayhead"><h2>'+esc(cap(tit))+'</h2><span class="cnt">'+items.length+(items.length===1?' registro':' registros')+(falta?' · <b>'+falta+' por completar</b>':'')+'</span>'
     +(dif!==0?'<button class="linkbtn" id="goToday">Volver a hoy</button>':'')+'</div>';
+  if(!Object.keys(data.ingestas).length)h+='<p class="vaciohoy">Lo que apuntes se queda en este móvil. Desde Tu espacio puedes guardar una copia.</p>';
   return h+'<div class="tl">'+lineaDia(items)+'</div>';
 }
 /* Orden de la línea (§3.4): lo registrado por hora; cada hueco de una principal va antes de
@@ -1586,7 +1600,7 @@ function saveIngesta(){
   x.sintomas=readPick('sintomas');x.sintomasOtros=x.sintomas.includes('Otros')?$('f-sintomasOtros').value.trim():'';
   if(!x.id)x.id=uid();
   delete x.ejemplo;
-  refrescar();data.ingestas[x.id]=x;save();
+  refrescar();data.ingestas[x.id]=x;if(save())pedirPersistencia();
   /* Desde Resultados se vuelve a Resultados, recalculado (§3.14). */
   if(volverRes){volverRes=false;close();render();toastGuardado('Guardado');return;}
   close();ui.sec='hoy';ui.cursor=x.fecha;saveUi();render();toastGuardado('Guardado');
@@ -1788,9 +1802,22 @@ function openMe(){
     +pinBlock()+etqCard()
     +'<div class="block"><div class="bk-h"><span class="ic">'+ico('descarga')+'</span><div><h4>Copia de seguridad</h4><small>'+esc(ultimaCopiaTxt())+'</small></div></div>'
     +'<div class="row2"><button class="btn primary" data-bk="guardar">Guardar copia</button><button class="btn sec" data-bk="recuperar">Recuperar</button></div></div>'
-    +'<p class="privacy">'+ico('escudo')+'<span>Tus datos se guardan solo en este móvil. No hay servidor ni cuentas: nadie más puede verlos.</span></p>'
+    +sobreBlock()
+    +'<p class="privacy">'+ico('escudo')+'<span>Tus datos se guardan solo en este móvil, sin servidor ni cuentas: no se envían a nadie. Quien use tu móvil puede verlos si no pones PIN.</span></p>'
     +'<p class="ver">Comida App '+VERSION+'</p></div></div>';
   document.body.style.overflow='hidden';
+}
+/* D17.5: qué es, dónde están los datos, iPhone, que no es una herramienta médica, borrar todo y licencia. */
+const CODIGO_URL='https://github.com/comida-consciente/comida-consciente.github.io';
+function sobreBlock(){
+  return '<details class="block sobre"><summary><span class="bd"></span><span class="tw"><h4>Sobre esta app</h4></span><span class="chev" aria-hidden="true">⌄</span></summary><div class="inner">'
+    +'<p><b>Qué es.</b> Un registro de lo que comes y de cómo te sientes antes y después. Sirve para darte cuenta, no para controlar: no cuenta calorías ni pone notas.</p>'
+    +'<p><b>Dónde están tus datos.</b> Solo en este navegador, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si borras los datos del navegador, se pierden: guarda una copia de vez en cuando.</p>'
+    +'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>'
+    +'<p><b>No es una herramienta médica</b> ni da consejos de alimentación. Lo que veas en Patrones son pistas para pensar o para comentar con un profesional.</p>'
+    +'<div id="wipeBox"><button type="button" class="btn danger" id="wipeMe">Borrar todos mis datos</button></div>'
+    +'<p>© 2026 Iñigo Caraballo · Todos los derechos reservados · <a href="'+CODIGO_URL+'" target="_blank" rel="noopener noreferrer">Código en GitHub</a></p>'
+    +'</div></details>';
 }
 function pinBlock(){
   const on=!!perfil.pin;
@@ -2066,6 +2093,12 @@ document.addEventListener('click',e=>{
   if(t.id==='pinCopia'){copiaDesdeAviso();return;}
   if(t.id==='pinActivar'){t.disabled=true;crearPin(flujo.first).then(pn=>{perfil.pin=pn;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();finPin('PIN activado');});return;}
   if(t.id==='forgotBtn'){$('forgotBox').innerHTML='<div class="forgot"><span>Sin el PIN no se pueden ver los datos. Puedes borrar todo lo de este móvil y recuperar después tu última copia.</span><button class="btn danger" id="wipeBtn">Borrar todo y empezar</button></div>';return;}
+  if(t.id==='wipeMe'){
+    if(t.classList.contains('armed')){borrarTodo();return;}
+    t.classList.add('armed');t.textContent='¿Seguro? Pulsa otra vez';
+    t.insertAdjacentHTML('afterend','<p class="hint">Se borra todo lo de este móvil. Si quieres conservarlo, guarda antes una copia.</p><div class="row2"><button class="btn sec small" data-bk="guardar">Guardar copia</button></div>');
+    return;
+  }
   if(t.id==='wipeBtn'){if(t.classList.contains('armed'))borrarTodo();else{t.classList.add('armed');t.textContent='¿Seguro? Pulsa otra vez';}return;}
   if(t.dataset.sec){if(t.dataset.sec==='pat')pat.vista='';ui.sec=t.dataset.sec;if(ui.sec==='hoy')ui.cursor=ui.cursor||TODAY;saveUi();render();window.scrollTo(0,0);return;}
   if(t.dataset.wk){moverSemana(Number(t.dataset.wk));return;}
