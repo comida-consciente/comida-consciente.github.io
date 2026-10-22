@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<title>Comida App</title>
+<title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -592,6 +592,8 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 <script>
 (function(){
 const VERSION='v0.8.1';
+/* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
+   (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
 const TIPOS=[['desayuno','Desayuno'],['media_manana','Media mañana'],['comida','Comida'],['merienda','Merienda'],['cena','Cena'],['picoteo','Picoteo']];
 const TIPO_LBL=Object.fromEntries(TIPOS);
@@ -887,7 +889,7 @@ function render(){
   const hoyD=parse(TODAY);
   const me=inicial();
   $('top').innerHTML='<div class="tt">'+(ui.sec==='hoy'
-      ?'<p class="kick">'+esc(cap(DIAS[hoyD.getDay()])+', '+hoyD.getDate()+' de '+MESES[hoyD.getMonth()])+'</p><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Comida App')+'</h1>'
+      ?'<p class="kick">'+esc(cap(DIAS[hoyD.getDay()])+', '+hoyD.getDate()+' de '+MESES[hoyD.getMonth()])+'</p><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Comida Consciente')+'</h1>'
       :ui.sec==='cal'?'<h1>Calendario</h1>'
       :'<p class="kick">'+esc(periodoTxt()+' · '+plural(periodoIng().length,'ingesta','ingestas'))+'</p><h1>Patrones</h1>')+'</div>'
     +'<div class="acts">'+(ui.sec==='pat'?'':'<button class="round" id="exportBtn" aria-label="Exportar">'+ico('exportar')+'</button>')
@@ -1785,7 +1787,7 @@ async function saveExport(){
   const dl=await getDownloader();
   if(!dl){toast('Aquí no se puede guardar el archivo: usa Copiar');return;}
   const ext=expFmt==='tabla'?'csv':expFmt==='resumido'?'txt':'md';
-  const name='comida-app-'+exp.scope+'-'+exp.ref+'.'+ext;
+  const name='comida-consciente-'+exp.scope+'-'+exp.ref+'.'+ext;
   try{await dl.save({filename:name,data:(ext==='csv'?'﻿':'')+$('expTxt').value});toast('Archivo guardado');}
   catch(e){if(!(e&&e.code==='declined'))toast('No se ha podido guardar: usa Copiar');}
 }
@@ -1804,7 +1806,7 @@ function openMe(){
     +'<div class="row2"><button class="btn primary" data-bk="guardar">Guardar copia</button><button class="btn sec" data-bk="recuperar">Recuperar</button></div></div>'
     +sobreBlock()
     +'<p class="privacy">'+ico('escudo')+'<span>Tus datos se guardan solo en este móvil, sin servidor ni cuentas: no se envían a nadie. Quien use tu móvil puede verlos si no pones PIN.</span></p>'
-    +'<p class="ver">Comida App '+VERSION+'</p></div></div>';
+    +'<p class="ver">Comida Consciente '+VERSION+'</p></div></div>';
   document.body.style.overflow='hidden';
 }
 /* D17.5: qué es, dónde están los datos, iPhone, que no es una herramienta médica, borrar todo y licencia. */
@@ -1861,7 +1863,7 @@ function backupJson(){
   return JSON.stringify(o,null,2);
 }
 async function saveBackup(){
-  const json=backupJson(),name='comida-app-copia-'+TODAY+'.json';
+  const json=backupJson(),name='comida-consciente-copia-'+TODAY+'.json';
   const dl=await getDownloader();
   const done=()=>{refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');render();openBackup();};
   const fallback=msg=>showBackupText(msg);
@@ -1889,7 +1891,7 @@ function parseImport(text){
     pendingImport=m;m.o=o;
     const q=[];if(m.nuevas)q.push('<b>'+pl(m.nuevas,'comida nueva','comidas nuevas')+'</b>');if(m.completadas)q.push('huecos en <b>'+pl(m.completadas,'comida','comidas')+'</b>');if(m.dias)q.push('<b>'+pl(m.dias,'cierre de día','cierres de día')+'</b>');if(m.nombre)q.push('tu nombre');
     $('importMsg').innerHTML='<div class="confirm"><span>Copia '+fecha+'. Se añade: '+q.join(', ')+'. Lo que ya está anotado no se cambia.'+noLeidos+'</span><div class="row2"><button class="btn primary small" id="doImport">Recuperar</button><button class="btn ghost small" id="cancelImport">Cancelar</button></div></div>';
-  }catch(e){$('importMsg').innerHTML='<p class="status" style="color:var(--danger)">Eso no es una copia de Comida App. Usa el archivo .json o el texto completo que guardaste desde «Guardar copia».</p>';}
+  }catch(e){$('importMsg').innerHTML='<p class="status" style="color:var(--danger)">Eso no es una copia de Comida Consciente. Usa el archivo .json o el texto completo que guardaste desde «Guardar copia».</p>';}
 }
 /* Fusionar (decidido el 24-09-2026): lo que no está se añade y lo que está en blanco se
    rellena; lo que ya tiene datos en este móvil no se toca. Se prepara sobre una copia de
@@ -2073,7 +2075,7 @@ function finPin(msg){flujo=null;teclado=null;openMe();toast(msg);}
 /* "Guardar copia ahora" sin salir del flujo; si el móvil no deja descargar, la hoja de copia. */
 async function copiaDesdeAviso(){
   const dl=await getDownloader();
-  try{await dl.save({filename:'comida-app-copia-'+TODAY+'.json',data:backupJson()});refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');pasoPin('aviso');}
+  try{await dl.save({filename:'comida-consciente-copia-'+TODAY+'.json',data:backupJson()});refrescar();data.ultimaCopia=new Date().toISOString();save();toast('Copia guardada');pasoPin('aviso');}
   catch(e){if(e&&e.code==='declined')return;flujo=null;openBackup('guardar');}
 }
 
