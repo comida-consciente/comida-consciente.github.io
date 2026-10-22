@@ -27,14 +27,16 @@
   --card-shadow:none; --raised-shadow:0 8px 24px rgba(31,42,38,.07);
   --bar-shadow:0 12px 30px rgba(31,42,38,.14);
   /* lo que cambia entre temas sin ser un color de la paleta (§7.3) */
-  --on-color:#FFFFFF; --seg-on:var(--surface); --heat-ink-3:#FFFFFF; --heat-ink-4:#FFFFFF;
+  --on-color:#FFFFFF; --seg-on:var(--surface); --heat-ink-3:var(--ink); --heat-ink-4:#FFFFFF;
   /* v0.8 (D16): botón Registrar, gráficos de Patrones y saciedad. Sin semáforo: los colores
      de las emociones solo sirven para distinguirlas. */
   --fab-shadow:0 8px 20px rgba(46,94,78,.4); --pat-barra:#CFC3DE;
   --sac-hambre:#C98A1B; --sac-bien:#D9D3C5; --sac-pasado:#4B5BA8;
-  --e-felicidad:#2F8A6E; --e-ansiedad:#C98A1B; --e-tristeza:#4B5BA8; --e-rabia:#A23B32; --e-culpa:#7A4E8C;
-  --e-miedo:#5E6A64; --e-aburrimiento:#8FA39A; --e-frustracion:#B8642A; --e-ninguna:#D6E6DE; --e-otra:#D9D3C5;
+  --e-felicidad:#2C8368; --e-ansiedad:#C98A1B; --e-tristeza:#4B5BA8; --e-rabia:#A23B32; --e-culpa:#7A4E8C;
+  --e-miedo:#5E6A64; --e-aburrimiento:#8FA39A; --e-frustracion:#AE5F27; --e-ninguna:#D6E6DE; --e-otra:#D9D3C5;
   --e-aburr-ink:var(--ink);
+  /* SEG-17: texto sobre el ámbar, oscuro en claro y del fondo en oscuro, para llegar a 4,5:1 */
+  --ambar-ink:var(--ink);
   --f-display:"Fraunces", ui-serif, Georgia, serif;
   --f-body:"Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -55,12 +57,12 @@
     --t-cena:#9AA6E8;         --t-cena-s:#2A2F45;         --t-cena-i:#9AA6E8;
     --t-picoteo:#C2A6E0;      --t-picoteo-s:#33293F;      --t-picoteo-i:#C2A6E0;
     --raised-shadow:0 8px 24px rgba(0,0,0,.35); --bar-shadow:0 12px 30px rgba(0,0,0,.5);
-    --on-color:var(--bg); --seg-on:var(--line-2); --heat-ink-3:var(--ink); --heat-ink-4:var(--accent-ink);
+    --on-color:var(--bg); --seg-on:var(--line-2); --heat-ink-3:var(--bg); --heat-ink-4:var(--accent-ink);
     --fab-shadow:0 8px 20px rgba(0,0,0,.5); --pat-barra:#4A3F5A;
     --sac-hambre:#E8B04A; --sac-bien:#3D4A44; --sac-pasado:#9AA6E8;
     --e-felicidad:#5CC2A0; --e-ansiedad:#E8B04A; --e-tristeza:#9AA6E8; --e-rabia:#E0786E; --e-culpa:#C2A6E0;
-    --e-miedo:#A9B3AD; --e-aburrimiento:#6E827A; --e-frustracion:#E3A06E; --e-ninguna:#2F6152; --e-otra:#3D4A44;
-    --e-aburr-ink:var(--bg);
+    --e-miedo:#A9B3AD; --e-aburrimiento:#738880; --e-frustracion:#E3A06E; --e-ninguna:#2F6152; --e-otra:#3D4A44;
+    --e-aburr-ink:var(--bg); --ambar-ink:var(--bg);
   }
 }
 :root[data-theme="dark"]{
@@ -79,12 +81,12 @@
   --t-cena:#9AA6E8;         --t-cena-s:#2A2F45;         --t-cena-i:#9AA6E8;
   --t-picoteo:#C2A6E0;      --t-picoteo-s:#33293F;      --t-picoteo-i:#C2A6E0;
   --raised-shadow:0 8px 24px rgba(0,0,0,.35); --bar-shadow:0 12px 30px rgba(0,0,0,.5);
-  --on-color:var(--bg); --seg-on:var(--line-2); --heat-ink-3:var(--ink); --heat-ink-4:var(--accent-ink);
+  --on-color:var(--bg); --seg-on:var(--line-2); --heat-ink-3:var(--bg); --heat-ink-4:var(--accent-ink);
   --fab-shadow:0 8px 20px rgba(0,0,0,.5); --pat-barra:#4A3F5A;
   --sac-hambre:#E8B04A; --sac-bien:#3D4A44; --sac-pasado:#9AA6E8;
   --e-felicidad:#5CC2A0; --e-ansiedad:#E8B04A; --e-tristeza:#9AA6E8; --e-rabia:#E0786E; --e-culpa:#C2A6E0;
-  --e-miedo:#A9B3AD; --e-aburrimiento:#6E827A; --e-frustracion:#E3A06E; --e-ninguna:#2F6152; --e-otra:#3D4A44;
-  --e-aburr-ink:var(--bg);
+  --e-miedo:#A9B3AD; --e-aburrimiento:#738880; --e-frustracion:#E3A06E; --e-ninguna:#2F6152; --e-otra:#3D4A44;
+  --e-aburr-ink:var(--bg); --ambar-ink:var(--bg);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -209,15 +211,15 @@ button{cursor:pointer}
 .cal-nav h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:21px;text-align:center;flex:1}
 .cal-nav h2 span{color:var(--ink-2);font-weight:500}
 .mgrid{display:grid;grid-template-columns:30px repeat(7,minmax(0,1fr));gap:5px}
-.dow,.wkn{font-size:12px;color:var(--ink-3);text-align:center;display:grid;place-items:center}
+.dow,.wkn{font-size:12px;color:var(--ink-2);text-align:center;display:grid;place-items:center}
 .wkn.now{color:var(--accent);font-weight:700}
 .mcell{height:46px;min-width:0;border:0;border-radius:12px;background:var(--heat-0);display:grid;align-content:space-between;padding:4px 5px;text-align:left;font-variant-numeric:tabular-nums;color:var(--ink)}
-.mcell b{font-size:11px;font-weight:400;opacity:.85}
+.mcell b{font-size:11px;font-weight:400}
 .mcell strong{justify-self:end;font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1}
 .mcell.blank{background:transparent}
 .mcell.is-today{outline:2px solid var(--ink);outline-offset:1px}
 .h1{background:var(--heat-1)}.h2{background:var(--heat-2)}.h3{background:var(--heat-3);color:var(--heat-ink-3)}.h4{background:var(--heat-4);color:var(--heat-ink-4)}
-.legend{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--ink-3);margin-top:12px}
+.legend{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--ink-2);margin-top:12px}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:4px}
 .legend .lt{margin-right:4px}
 .ygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
@@ -258,7 +260,7 @@ details.block > summary::-webkit-details-marker{display:none}
 details.block > summary .bd{width:10px;height:10px;border-radius:50%;flex:none;background:var(--accent)}
 details.block.despues > summary .bd{background:var(--after)}
 details.block > summary h4{flex:1;font-size:17px}
-details.block > summary .op{font-size:13px;color:var(--ink-3)}
+details.block > summary .op{font-size:13px;color:var(--ink-2)}
 .chev{width:28px;height:28px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:14px;color:var(--ink-2);flex:none;transition:transform .15s ease}
 details.block[open] > summary .chev{transform:rotate(180deg)}
 details.block .inner{display:grid;gap:14px;margin-top:14px}
@@ -273,7 +275,7 @@ textarea{min-height:64px;resize:vertical}
 .tipos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .tipos button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line-2);background:var(--field);border-radius:999px;padding:8px 6px;font-size:14px;min-height:42px;color:var(--ink);white-space:nowrap;min-width:0}
 .tipos button .ico{width:18px;height:18px;color:var(--t)}
-.tipos button[aria-pressed="true"]{background:var(--t);border-color:var(--t);color:var(--on-color)}
+.tipos button[aria-pressed="true"]{background:var(--ti);border-color:var(--ti);color:var(--on-color)} /* SEG-17: --ti para que el texto llegue a 4,5:1 */
 .tipos button[aria-pressed="true"] .ico{color:inherit}
 .segrow{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
 .segrow .pick{display:inline-grid;grid-auto-flow:column;background:var(--surface-2);border-radius:14px;padding:3px;gap:3px}
@@ -346,7 +348,7 @@ details.sobre .inner p{font-size:14px;color:var(--ink-2)}
 details.sobre .inner p b{color:var(--ink)}
 details.sobre .inner a{color:var(--accent);font-weight:700}
 .vaciohoy{margin:0 2px 14px;font-size:14px;color:var(--ink-2)}
-.ver{font-size:12px;color:var(--ink-3);text-align:center;margin:10px 0 0}
+.ver{font-size:12px;color:var(--ink-2);text-align:center;margin:10px 0 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;white-space:nowrap}
 /* ---------- Patrones (D16, §3.14) ---------- */
 .patseg{margin-bottom:12px}
@@ -399,12 +401,12 @@ details.sobre .inner a{color:var(--accent);font-weight:700}
 .t3h{display:flex;align-items:baseline;gap:8px}
 .t3h b{font-size:15px}
 .t3h span{font-size:13px;color:var(--ink-2)}
-.e-felicidad{background:var(--e-felicidad);color:var(--on-color)}.e-ansiedad{background:var(--e-ansiedad);color:var(--on-color)}
+.e-felicidad{background:var(--e-felicidad);color:var(--on-color)}.e-ansiedad{background:var(--e-ansiedad);color:var(--ambar-ink)}
 .e-tristeza{background:var(--e-tristeza);color:var(--on-color)}.e-rabia{background:var(--e-rabia);color:var(--on-color)}
 .e-culpa{background:var(--e-culpa);color:var(--on-color)}.e-miedo{background:var(--e-miedo);color:var(--on-color)}
 .e-aburrimiento{background:var(--e-aburrimiento);color:var(--e-aburr-ink)}.e-frustracion{background:var(--e-frustracion);color:var(--on-color)}
 .e-ninguna{background:var(--e-ninguna);color:var(--ink)}.e-otra{background:var(--e-otra);color:var(--ink)}
-.sac-0{background:var(--sac-hambre);color:var(--ink)}.sac-1{background:var(--sac-bien);color:var(--ink)}.sac-2{background:var(--sac-pasado);color:var(--on-color)}
+.sac-0{background:var(--sac-hambre);color:var(--ambar-ink)}.sac-1{background:var(--sac-bien);color:var(--ink)}.sac-2{background:var(--sac-pasado);color:var(--on-color)}
 .t4{display:grid;gap:10px}
 .t4f{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center}
 .t4n{display:grid;line-height:1.2}
