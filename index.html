@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vSAfyjaOFNvj+YhDMhoNR6gjwAsF2nCmr7bRqU/VC0o='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qpAqwkCxDQYeMxoUjzW3vQzasPx1ckEsDXU3yXPNNmI='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -368,6 +368,15 @@ details.block.contexto > summary .bd{background:var(--ink-3)}
 details.sobre .inner p{font-size:14px;color:var(--ink-2)}
 details.sobre .inner p b{color:var(--ink)}
 details.sobre .inner a{color:var(--accent);font-weight:700}
+/* v0.11: Opinar (un enlace que abre el formulario de Google en otra pestaña) y «Privacidad» junto a la versión */
+a.block.opinar{display:block;color:inherit;text-decoration:none}
+a.block.opinar .bk-h>div{flex:1}
+a.block.opinar .ext{color:var(--ink-2);flex:none}
+a.block.opinar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.enlace-priv{position:relative;border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.enlace-priv::after{content:'';position:absolute;inset:-12px -8px}
+.priv p{font-size:15px;line-height:1.5;color:var(--ink-2)}
+.priv p b{color:var(--ink)}
 .vaciohoy{margin:0 2px 14px;font-size:14px;color:var(--ink-2)}
 .ver{font-size:12px;color:var(--ink-2);text-align:center;margin:10px 0 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;white-space:nowrap}
@@ -585,6 +594,8 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 <path id="i-persona" d="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M4 21a8 8 0 0 1 16 0"/>
 <path id="i-descarga" d="M12 3v12 M7 10l5 5 5-5 M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
 <path id="i-escudo" d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>
+<path id="i-opinar" d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V17.5H4A1.5 1.5 0 0 1 2.5 16V7A1.5 1.5 0 0 1 4 5.5z"/>
+<path id="i-externo" d="M14 4h6v6 M20 4l-9 9 M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>
 <path id="i-candado" d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z M8 11V7a4 4 0 0 1 8 0v4"/>
 <path id="i-patrones" d="M4 20h16 M7 16v-4 M12 16V6 M17 16v-7"/>
 <path id="i-etiqueta" d="M5 9h14 M4 15h14 M10 3L8 21 M16 3l-2 18"/>
@@ -614,7 +625,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.10';
+const VERSION='v0.11';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -1863,9 +1874,45 @@ function openMe(){
     +pinBlock()+etqCard()
     +'<div class="block"><div class="bk-h"><span class="ic">'+ico('descarga')+'</span><div><h4>Copia de seguridad</h4><small>'+esc(ultimaCopiaTxt())+'</small></div></div>'
     +'<div class="row2"><button class="btn primary" data-bk="guardar">Guardar copia</button><button class="btn sec" data-bk="recuperar">Recuperar</button></div></div>'
+    +opinarBlock()
     +sobreBlock()
     +'<p class="privacy">'+ico('escudo')+'<span>Tus datos se guardan solo en este móvil, sin servidor ni cuentas: no se envían a nadie. Quien use tu móvil puede verlos si no pones PIN.</span></p>'
-    +'<p class="ver">Comida Consciente '+VERSION+'</p></div></div>';
+    +'<p class="ver">Comida Consciente '+VERSION+' · <button type="button" class="enlace-priv" id="verPriv">Privacidad</button></p></div></div>';
+  document.body.style.overflow='hidden';
+}
+/* Opinar (v0.11): la app no se conecta a ningún sitio (D17.4), así que no envía la opinión por
+   detrás como los juegos: abre el formulario de Google en otra pestaña, ya con la versión, cómo
+   se usa y el tipo de dispositivo. Nada de lo apuntado. Los entry salen del enlace prerrellenado
+   del formulario: si se cambia una pregunta en Google, hay que cambiarla aquí. */
+const OPINION_FORM='https://docs.google.com/forms/d/e/1FAIpQLSdMcIS2xCRiI1q3M1kwxfY0Ga3xJG9fQYnUw0VS0Jc9GdAr3w/viewform';
+const OPINION_CAMPOS={version:'entry.1031068515',uso:'entry.1550420656',dispositivo:'entry.1150654629'};
+function datosOpinion(){
+  const ua=navigator.userAgent||'';
+  const instalada=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+  const ipad=/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  const dispositivo=/iPhone|iPod/.test(ua)?'iPhone':ipad?'iPad':/Android/.test(ua)?'Android':'Ordenador';
+  return {version:VERSION,uso:instalada?'Instalada en pantalla de inicio':'En el navegador',dispositivo};
+}
+function opinionUrl(){
+  const d=datosOpinion();
+  return OPINION_FORM+'?usp=pp_url'+Object.keys(OPINION_CAMPOS).map(k=>'&'+OPINION_CAMPOS[k]+'='+encodeURIComponent(d[k])).join('');
+}
+function opinarBlock(){
+  return '<a class="block opinar" href="'+esc(opinionUrl())+'" target="_blank" rel="noopener noreferrer"><div class="bk-h"><span class="ic">'+ico('opinar')+'</span>'
+    +'<div><h4>Opinar</h4><small>Se abre un formulario de Google, fuera de la app. No lleva nada de lo que apuntas.</small></div>'+ico('externo','ext')+'</div></a>';
+}
+/* Privacidad (v0.11): la hoja que abre «Privacidad», junto a la versión. Dice lo mismo que el
+   README; «Volver» lleva otra vez a Tu espacio. */
+function openPriv(){
+  $('overlay').innerHTML='<div class="scrim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><div class="sheet-in">'
+    +'<div class="sheet-head"><button type="button" class="btn ghost" id="privVolver">Volver</button><h3 id="sh-t">Privacidad</h3><span class="sp"></span></div>'
+    +'<div class="block priv">'
+    +'<p>Comida Consciente <b>no tiene servidor, ni cuentas, ni analítica, ni cookies</b>.</p>'
+    +'<p>Lo que apuntas se guarda <b>solo en este móvil</b>, en el navegador; con PIN, cifrado. Si borras los datos del navegador, se pierde: guarda una copia de vez en cuando.</p>'
+    +'<p>La app <b>no se conecta a ningún sitio</b>: su política de seguridad se lo impide al propio navegador. Tus datos solo salen si tú guardas una copia o exportas.</p>'
+    +'<p>«Opinar» abre un <b>formulario de Google</b> en otra pestaña, con la versión de la app, si la usas instalada o en el navegador y el tipo de dispositivo. Nunca nada de lo que apuntas. Lo que escribas allí lo recibe Google.</p>'
+    +'<p>GitHub, que aloja la página, y Google, si opinas, <b>ven tu dirección IP</b>, como cualquier web.</p>'
+    +'</div><button type="button" class="btn primary" id="privOk" style="width:100%">Entendido</button></div></div>';
   document.body.style.overflow='hidden';
 }
 /* D17.5: qué es, dónde están los datos, iPhone, que no es una herramienta médica, borrar todo y licencia. */
@@ -2224,6 +2271,8 @@ document.addEventListener('click',e=>{
   const t=e.target.closest('button,[data-close]');if(!t)return;
   if(t.dataset.key){padKey(t.dataset.key);return;}
   if(t.dataset.pinflow){openPinFlow(t.dataset.pinflow);return;}
+  if(t.id==='verPriv'){openPriv();return;}
+  if(t.id==='privVolver'||t.id==='privOk'){openMe();return;}
   if(t.dataset.bloqueo){perfil.bloqueo=t.dataset.bloqueo;savePerfil();document.querySelectorAll('[data-bloqueo]').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return;}
   if(t.id==='pinCancel'){if(flujo&&flujo.mode==='migrar')return;flujo=null;teclado=null;openMe();return;}
   if(t.id==='pinNombreOk'){const v=$('f-pnombre').value.replace(/\s+/g,' ').trim();if(!v){$('f-pnombre').focus();toast('Escribe tu nombre para seguir');return;}setNombre(v);pasoPin('elegir');return;}

@@ -10,6 +10,10 @@ Safari no borre los datos.
 **Privacidad:** todo se guarda en tu navegador, en tu móvil. No hay servidor, ni cuentas, ni
 analítica: la página no se conecta a ningún sitio, y su política de seguridad (CSP) se lo
 impide al propio navegador. Tus datos solo salen si tú guardas una copia o exportas.
+«Opinar», en Tu espacio, abre un formulario de Google en otra pestaña con la versión, si la usas
+instalada o en el navegador y el tipo de dispositivo; nunca nada de lo que apuntas. Lo que
+escribas allí lo recibe Google, y GitHub (que aloja la página) y Google ven tu dirección IP, como
+cualquier web. Lo mismo se lee en la app: «Privacidad», junto a la versión.
 
 **Licencia:** © 2026 Iñigo Caraballo. Todos los derechos reservados (ver [`LICENSE`](LICENSE)):
 el código se puede leer, pero no reutilizar. Las fuentes de `fonts/` van con su propia
@@ -29,15 +33,16 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 | `Diseño/CC-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
 | `Diseño/CC-Decisiones.md` | Las decisiones (D1–D18), con su motivo |
 | `Diseño/CC-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
-| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.10` |
+| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.11` |
 | `QA/` | Bugs, compatibilidad y la revisión de seguridad (`CC-Revision-Publicacion`) |
 | `fixtures/` | Contrato de aceptación del parser y del validador |
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.10**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.11**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
-seguridad antes de publicar (D17) y el **cifrado con el PIN** (D18). Guarda en el `localStorage` del navegador: cada móvil tiene
+seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
+«Privacidad» (D19). Guarda en el `localStorage` del navegador: cada móvil tiene
 sus propios datos (D12). La copia de seguridad es `version: 3`.
 
 - **La clave de guardado (`comida-app-proto-v1`) y la marca de la copia (`"app": "comida-app"`) no
