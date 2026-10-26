@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qpAqwkCxDQYeMxoUjzW3vQzasPx1ckEsDXU3yXPNNmI='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QFhZa1a/uz4bKX3sSREwlo2HUksgVZu5mRncbgHUDdA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -174,7 +174,6 @@ button{cursor:pointer}
 .dayhead{display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap;margin:20px 2px 14px}
 .dayhead h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:22px;letter-spacing:-.01em}
 .dayhead .cnt{font-size:14px;color:var(--ink-2)}
-.dayhead .cnt b{color:var(--warn-ink)}
 .dayhead .linkbtn{margin-left:auto}
 
 /* Hoy: línea del día */
@@ -196,7 +195,6 @@ button{cursor:pointer}
 .chd{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;white-space:nowrap}
 .chd .k{font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ti)}
 .chd .h{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
-.tag{margin-left:auto;background:var(--warn-soft);color:var(--warn-ink);font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
 .food{font-size:16px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card.open .food{white-space:normal;overflow-wrap:anywhere}
 .food.none{font-style:italic;color:var(--ink-3)}
@@ -392,6 +390,14 @@ a.block.opinar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 14px;margin-bottom:14px;min-width:0}
 .pcard h3{margin:0;font-family:var(--f-display);font-weight:600;font-size:19px;line-height:1.25}
 .psub{margin:4px 0 12px;font-size:13px;color:var(--ink-2)}
+/* Patrones plegado (v0.12): título, una línea de resumen y el chevron para abrir. */
+details.pcard > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px}
+details.pcard > summary::-webkit-details-marker{display:none}
+details.pcard > summary .tw{flex:1;min-width:0;display:grid;gap:2px}
+details.pcard > summary .pres{font-size:13px;color:var(--ink-2)}
+details.pcard[open] > summary .pres{display:none}
+details.pcard[open] > summary{margin-bottom:4px}
+details.pcard[open] > summary .chev{transform:rotate(180deg)}
 .ppie{margin:12px 0 0;font-size:12px;color:var(--ink-2)}
 .pvacio{margin:8px 0 0;font-size:14px;color:var(--ink-2)}
 .pfrase{margin:12px 0 0;font-size:14px}
@@ -625,7 +631,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.11';
+const VERSION='v0.12';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -983,7 +989,7 @@ function renderHoy(){
   const items=byDay(ui.cursor),falta=items.filter(x=>!completa(x)).length;
   const dif=diasEntre(ui.cursor,TODAY);
   const tit=dif===0?'Hoy':dif===1?'Ayer':DIAS[c.getDay()]+' '+c.getDate();
-  h+='<div class="dayhead"><h2>'+esc(cap(tit))+'</h2><span class="cnt">'+items.length+(items.length===1?' registro':' registros')+(falta?' · <b>'+falta+' por completar</b>':'')+'</span>'
+  h+='<div class="dayhead"><h2>'+esc(cap(tit))+'</h2><span class="cnt">'+items.length+(items.length===1?' registro':' registros')+(falta?' · '+falta+(falta===1?' abierto':' abiertos'):'')+'</span>'
     +(dif!==0?'<button class="linkbtn" id="goToday">Volver a hoy</button>':'')+'</div>';
   if(!Object.keys(data.ingestas).length)h+='<p class="vaciohoy">Lo que apuntes se queda en este móvil. Desde Tu espacio puedes guardar una copia.</p>';
   return h+'<div class="tl">'+lineaDia(items)+'</div>';
@@ -1035,11 +1041,11 @@ function ingItem(x){
     return '<div class="ti t-'+esc(x.tipo)+'"><span class="dot d-full">'+ico(x.tipo)+'</span><button class="card" data-edit="'+esc(x.id)+'">'+head+'</div>'
       +'<div class="food">'+esc(x.alimentos)+'</div><div class="cmeta">'+esc((a||'—')+' → '+(d||'—')+(en?' · energía '+en.toLowerCase():'')+(x.saciedad?' · '+lower(x.saciedad):''))+'</div></button></div>';
   }
-  const tag=!ha&&!hd?'Falta el antes y el después':!hd?'Falta el después':!ha?'Falta el antes':'Faltan los alimentos';
+  /* Sin etiqueta «Falta el…» desde la v0.12: la caja de «+ Añadir» ya dice lo que falta. */
   const add=(lado,part)=>'<button class="half add '+lado+'" data-edit="'+esc(x.id)+'" data-part="'+part+'" aria-label="Añadir el '+part+' de '+esc(lbl)+'"><h5>'+(part==='antes'?'Antes':'Después')+'</h5>+ Añadir</button>';
   return '<div class="ti t-'+esc(x.tipo)+'"><span class="dot d-half">'+ico(x.tipo)+'</span><div class="card open">'
     +'<button class="hit" data-edit="'+esc(x.id)+'" aria-label="Editar '+esc(lbl+' '+hora)+'"></button><div class="body">'
-    +head+'<span class="tag">'+tag+'</span></div>'
+    +head+'</div>'
     +'<div class="food'+(x.alimentos?'':' none')+'">'+esc(x.alimentos||'Sin alimentos anotados')+'</div>'
     +'<div class="halves">'+(ha?halfHtml(x,'a'):add('a','antes'))+(hd?halfHtml(x,'d'):add('d','despues'))+'</div>'
     +(x.etiquetas.length?'<div class="etqs">'+x.etiquetas.map(t=>'<span class="etqchip"># '+esc(t)+'</span>').join('')+'</div>':'')+'</div></div></div>';
@@ -1103,7 +1109,7 @@ const SAC_TXT={'Con hambre':'Quedé con hambre','Bien':'Quedé bien','Me he pasa
 const filtroVacio=()=>({texto:'',emoAntes:[],dias:[],hambre:'',saciedad:'',tipos:[],etiquetas:[],sinEtiquetas:false,emoDespues:[],energia:[],sintomas:[],franjas:[],lugar:[]});
 /* Los filtros y el periodo se recuerdan mientras la app está abierta, solo en memoria:
    combinados son datos sensibles. */
-let pat={periodo:'mes',vista:'',filtros:filtroVacio(),origen:'',t2:'a',t6:'',mas:50,etqTodas:false};
+let pat={periodo:'mes',vista:'',filtros:filtroVacio(),origen:'',t2:'a',t6:'',mas:50,etqTodas:false,abiertas:new Set()};
 let volverRes=false;
 const pctN=(a,b)=>b?Math.round(100*a/b):0;
 const pctTxt=n=>n+' %';
@@ -1197,7 +1203,27 @@ function topEmos(xs,l,n){
   const c={};xs.forEach(x=>emosDe(x,l).forEach(e=>{if(e!=='Ninguna')c[e]=(c[e]||0)+1;}));
   return Object.keys(c).sort((a,b)=>c[b]-c[a]||EMO_TODAS.indexOf(a)-EMO_TODAS.indexOf(b)).slice(0,n);
 }
-const tarjeta=(tit,sub,body,pie,extra)=>'<section class="pcard"><h3>'+tit+'</h3>'+(extra||'')+(sub?'<p class="psub">'+sub+'</p>':'')+body+(pie?'<p class="ppie">'+pie+'</p>':'')+'</section>';
+/* Desde la v0.12 solo la primera tarjeta sale abierta; las demás, plegadas, con una línea fija que
+   dice qué enseñan (sin datos, para no juzgar). Lo abierto dura mientras no se sale de Patrones. */
+let resTarjeta=null;
+const tarjeta=(tit,sub,body,pie,extra)=>{
+  const cuerpo=(extra||'')+(sub?'<p class="psub">'+sub+'</p>':'')+body+(pie?'<p class="ppie">'+pie+'</p>':'');
+  if(!resTarjeta)return '<section class="pcard"><h3>'+tit+'</h3>'+cuerpo+'</section>';
+  const [clave,res]=resTarjeta;
+  return '<details class="pcard" data-pleg="'+clave+'"'+(pat.abiertas.has(clave)?' open':'')+'><summary><span class="tw"><h3>'+tit+'</h3><span class="pres">'+res+'</span></span><span class="chev" aria-hidden="true">⌄</span></summary>'+cuerpo+'</details>';
+};
+const RESUMEN_PAT=[
+  ['t2','Tus emociones de antes o de después, día a día.'],
+  ['t3','Qué emoción queda después, según la de antes.'],
+  ['t4','Lo que respondes a «¿Cómo me he quedado?» en cada comida.'],
+  ['t5','Qué parte de cada franja del día es sin hambre.'],
+  ['t6','Qué emociones acompañan a cada etiqueta.'],
+];
+function tarjetasPat(P){
+  let h=t1(P);
+  [t2,t3,t4,t5,t6].forEach((f,i)=>{resTarjeta=RESUMEN_PAT[i];try{h+=f(P);}finally{resTarjeta=null;}});
+  return h;
+}
 const vacioP=t=>'<p class="pvacio">'+t+'</p>';
 const plural=(n,a,b)=>n+' '+(n===1?a:b);
 
@@ -1208,7 +1234,7 @@ function renderPat(){
   if(ui.pat==='buscar')return seg+renderBuscar();
   const P=periodoIng();
   return seg+periodoChips()+avisoPocos()
-    +(P.length?t1(P)+t2(P)+t3(P)+t4(P)+t5(P)+t6(P):'<div class="vacio sm"><p>No hay ingestas en este periodo.</p></div>')+comoLeer();
+    +(P.length?tarjetasPat(P):'<div class="vacio sm"><p>No hay ingestas en este periodo.</p></div>')+comoLeer();
 }
 const periodoChips=()=>'<div class="pchips" role="group" aria-label="Periodo">'+PERIODOS.map(([k,l])=>'<button type="button" class="pchip" data-periodo="'+k+'" aria-pressed="'+(pat.periodo===k)+'">'+l+'</button>').join('')+'</div>';
 /* Menos de 6 semanas desde la primera ingesta real: pistas, no conclusiones. */
@@ -1559,7 +1585,8 @@ function openIngesta(id,tipo,part){
   $('overlay').innerHTML='<div class="scrim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><form class="sheet-in" id="fIng">'
     +'<div class="sheet-head"><button type="button" class="btn ghost" data-close>Cancelar</button><h3 id="sh-t">'+(id?'Editar':'Nuevo registro')+'</h3><button class="btn primary small" type="submit">Guardar</button></div>'
     +'<div class="block"><div class="field"><span class="lbl">¿Qué comida?</span>'+tipos+'</div>'
-    +'<div class="field"><label for="f-alimentos">Alimentos y bebidas</label><input type="text" id="f-alimentos" placeholder="Ej.: café con leche y tostada" value="'+esc(draft.alimentos)+'"></div>'
+    +'<div class="field"><label for="f-alimentos">Alimentos y bebidas</label><input type="text" id="f-alimentos" placeholder="Ej.: café con leche y tostada" value="'+esc(draft.alimentos)+'" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="aliSug">'
+    +'<div class="sug" id="aliSug" role="listbox" aria-label="Alimentos que ya has apuntado" hidden></div></div>'
     +'<div class="whenrow"><div class="field"><label for="f-hora">Hora</label><input type="time" id="f-hora" value="'+esc(draft.hora)+'"></div>'
     +'<div class="field"><span class="lbl">Día</span><span class="day">'+esc(cap(longDate(draft.fecha)))+'</span></div></div></div>'
     +'<details class="block antes"'+(openA?' open':'')+'>'+sum('antes','Antes de comer','opcional')+'<div class="inner">'
@@ -1643,6 +1670,57 @@ function addEtq(t,foco){
   draft.etiquetas.push(ex?ex.nombre:n);
   $('f-etq').value='';sugIx=0;pintarEtq();resumenForm();
   if(foco&&!$('f-etq').disabled)$('f-etq').focus();
+}
+/* Sugerencias de alimentos (v0.12): al escribir, los que ya has apuntado en este móvil, uno por uno
+   (el texto se parte por comas y punto y coma). Se sugiere para el trozo que se escribe ahora, el de
+   después de la última coma, por el principio de cualquier palabra. Como mucho 5, las más repetidas
+   primero. Sin datos de ejemplo. Nada resaltado de partida: Intro solo acepta una sugerencia si se
+   ha elegido con las flechas, así nunca se acepta sola. Sigue siendo texto libre. */
+let aliIx=-1;
+const ALI_MAX=5;
+const trozosAli=t=>String(t||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+function catalogoAli(){
+  if(!data)return [];
+  const m=new Map();
+  for(const x of Object.values(data.ingestas)){
+    if(x.ejemplo)continue;
+    for(const n of trozosAli(x.alimentos)){
+      const k=normTxt(n);if(!k)continue;
+      const c=m.get(k);
+      if(c){c.usos++;if(x.fecha>c.fecha){c.fecha=x.fecha;c.nombre=n;}}
+      else m.set(k,{clave:k,nombre:n,usos:1,fecha:x.fecha});
+    }
+  }
+  return [...m.values()].sort((a,b)=>b.usos-a.usos||(a.fecha<b.fecha?1:a.fecha>b.fecha?-1:0));
+}
+function sugerenciasAli(){
+  const inp=$('f-alimentos');if(!inp||!draft)return null;
+  const v=inp.value,i=Math.max(v.lastIndexOf(','),v.lastIndexOf(';'));
+  const q=normTxt(v.slice(i+1));if(!q)return null;
+  const ya=new Set(trozosAli(v.slice(0,i+1)).map(normTxt));
+  return catalogoAli().filter(c=>c.clave!==q&&!ya.has(c.clave)&&(c.clave.startsWith(q)||c.clave.includes(' '+q))).slice(0,ALI_MAX);
+}
+function ocultarSugAli(){
+  const box=$('aliSug'),inp=$('f-alimentos');if(!box)return;
+  box.hidden=true;box.innerHTML='';aliIx=-1;
+  inp.setAttribute('aria-expanded','false');inp.removeAttribute('aria-activedescendant');
+}
+function pintarSugAli(){
+  const box=$('aliSug'),inp=$('f-alimentos'),it=sugerenciasAli();
+  if(!box)return;
+  if(!it||!it.length){ocultarSugAli();return;}
+  aliIx=Math.min(aliIx,it.length-1);
+  box.innerHTML=it.map((c,i)=>'<button type="button" role="option" id="ali-'+i+'" aria-selected="'+(i===aliIx)+'" class="'+(i===aliIx?'hl':'')+'" data-aliadd="'+i+'"><span>'+esc(c.nombre)+'</span></button>').join('');
+  box.hidden=false;inp.setAttribute('aria-expanded','true');
+  if(aliIx>=0)inp.setAttribute('aria-activedescendant','ali-'+aliIx);else inp.removeAttribute('aria-activedescendant');
+}
+/* Cambia el trozo que se está escribiendo por la sugerencia; lo de antes de la coma se queda. */
+function ponerAli(i){
+  const it=sugerenciasAli(),inp=$('f-alimentos');if(!it||!it[i])return;
+  const v=inp.value,j=Math.max(v.lastIndexOf(','),v.lastIndexOf(';'));
+  const antes=j<0?'':v.slice(0,j+1)+' ';
+  inp.value=antes+it[i].nombre;
+  ocultarSugAli();inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);resumenForm();
 }
 function guessTipo(d){const h=d.getHours()+d.getMinutes()/60;return h<10.5?'desayuno':h<12.5?'media_manana':h<16?'comida':h<19.5?'merienda':'cena';}
 function readPick(name){const box=document.querySelector('[data-pick="'+name+'"]');return [...box.querySelectorAll('[aria-pressed="true"]')].map(b=>b.dataset.v);}
@@ -2286,7 +2364,7 @@ document.addEventListener('click',e=>{
     return;
   }
   if(t.id==='wipeBtn'){if(t.classList.contains('armed'))borrarTodo();else{t.classList.add('armed');t.textContent='¿Seguro? Pulsa otra vez';}return;}
-  if(t.dataset.sec){if(t.dataset.sec==='pat')pat.vista='';ui.sec=t.dataset.sec;if(ui.sec==='hoy')ui.cursor=ui.cursor||TODAY;saveUi();render();window.scrollTo(0,0);return;}
+  if(t.dataset.sec){if(t.dataset.sec==='pat'){pat.vista='';if(ui.sec!=='pat')pat.abiertas.clear();}ui.sec=t.dataset.sec;if(ui.sec==='hoy')ui.cursor=ui.cursor||TODAY;saveUi();render();window.scrollTo(0,0);return;}
   if(t.dataset.wk){moverSemana(Number(t.dataset.wk));return;}
   if(t.dataset.cal){ui.cal=t.dataset.cal;saveUi();render();return;}
   if(t.dataset.cm){const c=parse(ui.calCursor);ui.calCursor=iso(new Date(c.getFullYear(),c.getMonth()+Number(t.dataset.cm),1));render();return;}
@@ -2363,6 +2441,7 @@ document.addEventListener('click',e=>{
   if(t.hasAttribute('data-close')){close();return;}
   if(t.dataset.etqdel){draft.etiquetas.splice(Number(t.dataset.etqdel),1);pintarEtq();resumenForm();return;}
   if(t.dataset.etqadd){addEtq(t.dataset.etqadd,!!t.dataset.foco);return;}
+  if(t.dataset.aliadd){ponerAli(Number(t.dataset.aliadd));return;}
   const stp=t.closest('.step');
   if(stp){stepBy(stp.dataset.step,t.hasAttribute('data-inc')?1:-1);return;}
   const box=t.parentElement&&t.parentElement.dataset.pick?t.parentElement:null;
@@ -2382,10 +2461,15 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='f-etq'){sugIx=0;pintarSug();return;}
+  if(e.target.id==='f-alimentos'){aliIx=-1;pintarSugAli();resumenForm();return;}
   if(e.target.id==='f-buscar'){pat.filtros.texto=e.target.value;$('verWrap').outerHTML=botonVer();return;}
   if(e.target.id==='f-ren'&&etqUi.renAviso){etqUi.renAviso='';$('renAviso').hidden=true;$('renOk').textContent='Guardar';return;}
   if(e.target.closest('#fIng'))resumenForm();
 });
+/* Las sugerencias de alimentos se cierran al pasar a otro campo. */
+document.addEventListener('focusin',e=>{if(e.target.id!=='f-alimentos'&&!e.target.closest('#aliSug'))ocultarSugAli();});
+/* Las tarjetas de Patrones que se abren siguen abiertas al repintar (cambiar el periodo, la emoción…). */
+document.addEventListener('toggle',e=>{const c=e.target.dataset&&e.target.dataset.pleg;if(c){if(e.target.open)pat.abiertas.add(c);else pat.abiertas.delete(c);}},true);
 /* SEG-10: otra pestaña ha guardado. Sin nada a medias, se lee y se pinta; con una hoja abierta,
    lo hace refrescar() al guardar. */
 window.addEventListener('storage',e=>{
@@ -2418,6 +2502,14 @@ document.addEventListener('keydown',e=>{
     const it=sugerencias();
     if(e.key==='Enter'){e.preventDefault();if(it&&it.length)addEtq(it[sugIx].nuevo||it[sugIx].nombre,true);return;}
     if((e.key==='ArrowDown'||e.key==='ArrowUp')&&it&&it.length){e.preventDefault();sugIx=(sugIx+(e.key==='ArrowDown'?1:it.length-1))%it.length;pintarSug();return;}
+  }
+  /* Alimentos: las flechas eligen una sugerencia, Intro la pone y Escape cierra la lista. Sin nada
+     elegido, Intro hace lo de siempre (guardar). */
+  if(e.target.id==='f-alimentos'&&!$('aliSug').hidden){
+    const it=sugerenciasAli();
+    if(e.key==='Enter'&&it&&aliIx>=0&&it[aliIx]){e.preventDefault();ponerAli(aliIx);return;}
+    if((e.key==='ArrowDown'||e.key==='ArrowUp')&&it&&it.length){e.preventDefault();aliIx=e.key==='ArrowDown'?(aliIx+1)%it.length:(aliIx<=0?it.length-1:aliIx-1);pintarSugAli();return;}
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();ocultarSugAli();return;}
   }
   if(e.key==='Enter'&&e.target.id==='f-ren'){e.preventDefault();renGuardar();return;}
   if(e.key==='Enter'&&e.target.id==='f-buscar'){e.preventDefault();e.target.blur();return;}

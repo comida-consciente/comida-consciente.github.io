@@ -33,16 +33,16 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 | `Diseño/CC-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
 | `Diseño/CC-Decisiones.md` | Las decisiones (D1–D18), con su motivo |
 | `Diseño/CC-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
-| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.11` |
+| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.12` |
 | `QA/` | Bugs, compatibilidad y la revisión de seguridad (`CC-Revision-Publicacion`) |
 | `fixtures/` | Contrato de aceptación del parser y del validador |
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.11**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
-«Privacidad» (D19). Guarda en el `localStorage` del navegador: cada móvil tiene
+«Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
 sus propios datos (D12). La copia de seguridad es `version: 3`.
 
 - **La clave de guardado (`comida-app-proto-v1`) y la marca de la copia (`"app": "comida-app"`) no
