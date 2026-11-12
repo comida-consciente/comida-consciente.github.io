@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Grj6yEpxcrJNl6xiMmPkftBxn+pkAeYM/in7+LmUqNA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-EaHY9+xELOAvcyCh29g8JWe0DFl1wXdKEgcdkPvwk20='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -134,6 +134,11 @@ button{cursor:pointer}
 .top .acts-col{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
 .top .round.tema{width:32px;height:32px}
 .top .round.tema .ico{width:16px;height:16px}
+.top .fila-tema{display:flex;align-items:center;gap:8px}
+a.opinar-top{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border-radius:999px;
+  border:1.5px solid var(--accent);color:var(--accent);font-weight:700;font-size:14px;text-decoration:none;white-space:nowrap}
+a.opinar-top .ico{width:16px;height:16px}
+a.opinar-top:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top .tt{min-width:0}
 .top .kick{margin:0 0 2px;font-size:14px;color:var(--ink-2)}
 .top h1{margin:0;font-family:var(--f-display);font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -373,11 +378,7 @@ details.block.contexto > summary .bd{background:var(--ink-3)}
 details.sobre .inner p{font-size:14px;color:var(--ink-2)}
 details.sobre .inner p b{color:var(--ink)}
 details.sobre .inner a{color:var(--accent);font-weight:700}
-/* v0.11: Opinar (un enlace que abre el formulario de Google en otra pestaña) y «Privacidad» junto a la versión */
-a.block.opinar{display:block;color:inherit;text-decoration:none}
-a.block.opinar .bk-h>div{flex:1}
-a.block.opinar .ext{color:var(--ink-2);flex:none}
-a.block.opinar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* v0.11: «Privacidad» junto a la versión. Opinar, desde la v0.14 en la cabecera (a.opinar-top) */
 .enlace-priv{position:relative;border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .enlace-priv::after{content:'';position:absolute;inset:-12px -8px}
 .priv p{font-size:15px;line-height:1.5;color:var(--ink-2)}
@@ -648,7 +649,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.13';
+const VERSION='v0.14';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -1005,7 +1006,7 @@ function render(){
       ?'<p class="kick">'+esc(cap(DIAS[hoyD.getDay()])+', '+hoyD.getDate()+' de '+MESES[hoyD.getMonth()])+'</p><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Comida Consciente')+'</h1>'
       :ui.sec==='cal'?'<h1>Calendario</h1>'
       :'<p class="kick">'+esc(periodoTxt()+' · '+plural(periodoIng().length,'ingesta','ingestas'))+'</p><h1>Patrones</h1>')+'</div>'
-    +'<div class="acts-col">'+botonTema()
+    +'<div class="acts-col"><div class="fila-tema">'+botonOpinar()+botonTema()+'</div>'
     +'<div class="acts">'+(ui.sec==='pat'?'':'<button class="round" id="exportBtn" aria-label="Exportar">'+ico('exportar')+'</button>')
     +'<button class="round me" id="meBtn" aria-label="Tu espacio">'+(me?esc(me):ico('persona'))+'</button></div></div>';
   $('banner').innerHTML=bannerHtml();
@@ -2042,7 +2043,6 @@ function openMe(){
     +pinBlock()+etqCard()
     +'<div class="block"><div class="bk-h"><span class="ic">'+ico('descarga')+'</span><div><h4>Copia de seguridad</h4><small>'+esc(ultimaCopiaTxt())+'</small></div></div>'
     +'<div class="row2"><button class="btn primary" data-bk="guardar">Guardar copia</button><button class="btn sec" data-bk="recuperar">Recuperar</button></div></div>'
-    +opinarBlock()
     +sobreBlock()
     +'<p class="privacy">'+ico('escudo')+'<span>Tus datos se guardan solo en este móvil, sin servidor ni cuentas: no se envían a nadie. Quien use tu móvil puede verlos si no pones PIN.</span></p>'
     +'<p class="ver">Comida Consciente '+VERSION+' · <button type="button" class="enlace-priv" id="verPriv">Privacidad</button></p></div></div>';
@@ -2065,9 +2065,10 @@ function opinionUrl(){
   const d=datosOpinion();
   return OPINION_FORM+'?usp=pp_url'+Object.keys(OPINION_CAMPOS).map(k=>'&'+OPINION_CAMPOS[k]+'='+encodeURIComponent(d[k])).join('');
 }
-function opinarBlock(){
-  return '<a class="block opinar" href="'+esc(opinionUrl())+'" target="_blank" rel="noopener noreferrer"><div class="bk-h"><span class="ic">'+ico('opinar')+'</span>'
-    +'<div><h4>Opinar</h4><small>Se abre un formulario de Google, fuera de la app. No lleva nada de lo que apuntas.</small></div>'+ico('externo','ext')+'</div></a>';
+/* Opinar en la cabecera (v0.14), a la izquierda de la luna, como en los juegos: a la vista mientras
+   la prueba gente. Abre el formulario fuera de la app, como antes desde «Tu espacio». */
+function botonOpinar(){
+  return '<a class="opinar-top" href="'+esc(opinionUrl())+'" target="_blank" rel="noopener noreferrer"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-opinar"/></svg>Opinar</a>';
 }
 /* Privacidad (v0.11): la hoja que abre «Privacidad», junto a la versión. Dice lo mismo que el
    README; «Volver» lleva otra vez a Tu espacio. */
@@ -2090,7 +2091,6 @@ function openPriv(){
   document.body.style.overflow='hidden';
 }
 /* D17.5: qué es, dónde están los datos, iPhone, que no es una herramienta médica, borrar todo y licencia. */
-const CODIGO_URL='https://github.com/comida-consciente/comida-consciente.github.io';
 /* La política completa, con dirección propia (Google Play pide un enlace público). Dice lo mismo que
    la hoja «Privacidad» y el README: si cambia una, cambiar las tres. */
 const POLITICA_URL='https://comida-consciente.github.io/privacidad.html';
@@ -2108,7 +2108,7 @@ function sobreBlock(){
     +(esApp()?'':'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>')
     +'<p><b>No es una herramienta médica</b> ni da consejos de alimentación. Lo que veas en Patrones son pistas para pensar o para comentar con un profesional.</p>'
     +'<div id="wipeBox"><button type="button" class="btn danger" id="wipeMe">Borrar todos mis datos</button></div>'
-    +'<p>© 2026 Iñigo Caraballo · Todos los derechos reservados · <a href="'+CODIGO_URL+'" target="_blank" rel="noopener noreferrer">Código en GitHub</a></p>'
+    +'<p>© 2026 Iñigo Caraballo · Todos los derechos reservados</p>'
     +'</div></details>';
 }
 function pinBlock(){
