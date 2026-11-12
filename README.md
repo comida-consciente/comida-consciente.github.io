@@ -39,7 +39,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12.1**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12.2**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
 «Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
@@ -173,6 +173,13 @@ Las dos corrompen en silencio, sin dar error, y las dos están cubiertas:
 
 Aquí no entra ni un dato real: `diario/`, `derivado/`, las copias y las exportaciones de la
 app están en `.gitignore`. Los registros viven en el móvil de cada persona (D1, D12).
+
+La política de privacidad pública es [`privacidad.html`](https://comida-consciente.github.io/privacidad.html)
+(es la que se pone en Google Play). Dice lo mismo que la hoja «Privacidad» de la app (`openPriv` en
+`index.html`) y que este apartado: **si cambia una, cambiar las tres**. Resumen: sin servidor, cuentas,
+analítica ni cookies; los datos se quedan en el dispositivo (con PIN, cifrados); la app de Android no
+tiene permiso de internet ni copia automática a la nube; «Opinar» abre un formulario de Google sin
+datos de lo apuntado.
 
 ## App de Android (`app-android/`)
 

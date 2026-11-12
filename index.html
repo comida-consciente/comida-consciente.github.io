@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-O+0zbcM/MmEJbg37P2+w5VmLvPpORRU6LdrShg849/A='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uaDy1P3KVVBwB4Cc3/MPSlUEdOrw5djFdcAqOOQNuyo='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -375,6 +375,7 @@ a.block.opinar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .enlace-priv::after{content:'';position:absolute;inset:-12px -8px}
 .priv p{font-size:15px;line-height:1.5;color:var(--ink-2)}
 .priv p b{color:var(--ink)}
+.priv a{color:var(--accent);font-weight:700}
 .vaciohoy{margin:0 2px 14px;font-size:14px;color:var(--ink-2)}
 .ver{font-size:12px;color:var(--ink-2);text-align:center;margin:10px 0 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;white-space:nowrap}
@@ -631,7 +632,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.12.1';
+const VERSION='v0.12.2';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -1993,7 +1994,7 @@ function datosOpinion(){
   const instalada=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
   const ipad=/iPad/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
   const dispositivo=/iPhone|iPod/.test(ua)?'iPhone':ipad?'iPad':/Android/.test(ua)?'Android':'Ordenador';
-  return {version:VERSION,uso:instalada?'Instalada en pantalla de inicio':'En el navegador',dispositivo};
+  return {version:VERSION,uso:esApp()?'App de Android':instalada?'Instalada en pantalla de inicio':'En el navegador',dispositivo};
 }
 function opinionUrl(){
   const d=datosOpinion();
@@ -2010,21 +2011,36 @@ function openPriv(){
     +'<div class="sheet-head"><button type="button" class="btn ghost" id="privVolver">Volver</button><h3 id="sh-t">Privacidad</h3><span class="sp"></span></div>'
     +'<div class="block priv">'
     +'<p>Comida Consciente <b>no tiene servidor, ni cuentas, ni analítica, ni cookies</b>.</p>'
-    +'<p>Lo que apuntas se guarda <b>solo en este móvil</b>, en el navegador; con PIN, cifrado. Si borras los datos del navegador, se pierde: guarda una copia de vez en cuando.</p>'
-    +'<p>La app <b>no se conecta a ningún sitio</b>: su política de seguridad se lo impide al propio navegador. Tus datos solo salen si tú guardas una copia o exportas.</p>'
-    +'<p>«Opinar» abre un <b>formulario de Google</b> en otra pestaña, con la versión de la app, si la usas instalada o en el navegador y el tipo de dispositivo. Nunca nada de lo que apuntas. Lo que escribas allí lo recibe Google.</p>'
-    +'<p>GitHub, que aloja la página, y Google, si opinas, <b>ven tu dirección IP</b>, como cualquier web.</p>'
+    +(esApp()
+      ?'<p>Lo que apuntas se guarda <b>solo en este móvil</b>, dentro de la app; con PIN, cifrado. Si desinstalas la app o borras sus datos, se pierde: guarda una copia de vez en cuando. Android no la copia a la nube por su cuenta.</p>'
+      +'<p>La app <b>no tiene permiso de internet</b>: no se conecta a ningún sitio. Tus datos solo salen si tú guardas una copia o exportas, y entonces eliges tú adónde van.</p>'
+      +'<p>«Opinar» abre un <b>formulario de Google</b> en el navegador del móvil, con la versión de la app y el tipo de dispositivo. Nunca nada de lo que apuntas. Lo que escribas allí lo recibe Google.</p>'
+      +'<p>Google, si opinas, <b>ve tu dirección IP</b>, como cualquier web.</p>'
+      :'<p>Lo que apuntas se guarda <b>solo en este móvil</b>, en el navegador; con PIN, cifrado. Si borras los datos del navegador, se pierde: guarda una copia de vez en cuando.</p>'
+      +'<p>La app <b>no se conecta a ningún sitio</b>: su política de seguridad se lo impide al propio navegador. Tus datos solo salen si tú guardas una copia o exportas.</p>'
+      +'<p>«Opinar» abre un <b>formulario de Google</b> en otra pestaña, con la versión de la app, si la usas instalada o en el navegador y el tipo de dispositivo. Nunca nada de lo que apuntas. Lo que escribas allí lo recibe Google.</p>'
+      +'<p>GitHub, que aloja la página, y Google, si opinas, <b>ven tu dirección IP</b>, como cualquier web.</p>')
+    +'<p><a href="'+POLITICA_URL+'" target="_blank" rel="noopener noreferrer">Política de privacidad completa</a></p>'
     +'</div><button type="button" class="btn primary" id="privOk" style="width:100%">Entendido</button></div></div>';
   document.body.style.overflow='hidden';
 }
 /* D17.5: qué es, dónde están los datos, iPhone, que no es una herramienta médica, borrar todo y licencia. */
 const CODIGO_URL='https://github.com/comida-consciente/comida-consciente.github.io';
+/* La política completa, con dirección propia (Google Play pide un enlace público). Dice lo mismo que
+   la hoja «Privacidad» y el README: si cambia una, cambiar las tres. */
+const POLITICA_URL='https://comida-consciente.github.io/privacidad.html';
+/* Dentro de la app de Android (Capacitor) no hay «navegador» ni Safari: algunos textos cambian. */
+function esApp(){
+  try{const c=window.Capacitor;return !!(c&&c.isNativePlatform&&c.isNativePlatform());}catch(e){return false;}
+}
 function sobreBlock(){
   return '<details class="block sobre"><summary><span class="bd"></span><span class="tw"><h4>Sobre esta app</h4></span><span class="chev" aria-hidden="true">⌄</span></summary><div class="inner">'
     +'<p><b>Qué es.</b> Un registro de lo que comes y de cómo te sientes antes y después. Sirve para darte cuenta, no para controlar: no cuenta calorías ni pone notas.</p>'
-    +'<p><b>Dónde están tus datos.</b> Solo en este navegador, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si borras los datos del navegador, se pierden: guarda una copia de vez en cuando.</p>'
+    +(esApp()
+      ?'<p><b>Dónde están tus datos.</b> Solo en esta app, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si desinstalas la app o borras sus datos, se pierden: guarda una copia de vez en cuando.</p>'
+      :'<p><b>Dónde están tus datos.</b> Solo en este navegador, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si borras los datos del navegador, se pierden: guarda una copia de vez en cuando.</p>')
     +'<p><b>Con PIN</b>, lo que apuntas se guarda cifrado: sin el PIN no se puede leer.</p>'
-    +'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>'
+    +(esApp()?'':'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>')
     +'<p><b>No es una herramienta médica</b> ni da consejos de alimentación. Lo que veas en Patrones son pistas para pensar o para comentar con un profesional.</p>'
     +'<div id="wipeBox"><button type="button" class="btn danger" id="wipeMe">Borrar todos mis datos</button></div>'
     +'<p>© 2026 Iñigo Caraballo · Todos los derechos reservados · <a href="'+CODIGO_URL+'" target="_blank" rel="noopener noreferrer">Código en GitHub</a></p>'
