@@ -1,6 +1,6 @@
 {
   "name": "comida-consciente-android",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "Comida Consciente como app de Android (Capacitor). La web de la carpeta de arriba es el original: aquí sólo se copia y se empaqueta.",

@@ -3,6 +3,6 @@
   "appName": "Comida Consciente",
   "webDir": "www",
   "android": {
-    "backgroundColor": "#F6F4EE"
+    "backgroundColor": "#F3F5EB"
   }
 }

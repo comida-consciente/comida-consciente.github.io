@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AhGGu1mMPwbJLk/PYL80vSjfZNtz+KgPLxfwFmrscGw='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Grj6yEpxcrJNl6xiMmPkftBxn+pkAeYM/in7+LmUqNA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -19,7 +19,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#F6F4EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#F3F5EB" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141A17" media="(prefers-color-scheme: dark)">
 <style>
 /* SEG-04 (D17.4): las fuentes van dentro del repo (subconjunto latino, SIL Open Font License:
@@ -30,15 +30,17 @@
 @font-face{font-family:"Atkinson Hyperlegible";src:url("fonts/atkinson-400-italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
 /* Estilo «Sereno» (D15). Colores, radios y sombras salen siempre de estas variables:
    los dos temas funcionan cambiando solo las variables. */
+/* v0.13: el modo claro pasa a la paleta «Huerta» (verde hoja y calabaza, fondo crema verdoso),
+   elegida por Iñigo el 12-11-2026. Los colores de comidas y emociones no cambian. */
 :root{
-  --bg:#F6F4EE; --surface:#FFFFFF; --surface-2:#EFEBE1; --field:#FBFAF6;
-  --line:#E8E3D8; --line-2:#E2DDD1; --line-dash:#D9D3C5;
-  --ink:#1F2A26; --ink-2:#5E6A64; --ink-3:#8A948F; --ink-label:#3E4A45;
-  --accent:#2E5E4E; --accent-ink:#FFFFFF; --accent-soft:#E3EEEA;
-  --after:#B8642A; --after-edge:#C9824A; --after-ink:#9A5626; --after-soft:#FBEFE4;
-  --warn-ink:#8A5A0F; --warn-soft:#F7ECD2;
+  --bg:#F3F5EB; --surface:#FFFFFF; --surface-2:#E5ECD9; --field:#F9FAF4;
+  --line:#DCE4CE; --line-2:#D1DBC1; --line-dash:#C1CFAD;
+  --ink:#1C2B1F; --ink-2:#4F6352; --ink-3:#7E9180; --ink-label:#344A38;
+  --accent:#2B7649; --accent-ink:#FFFFFF; --accent-soft:#DDF0E1;
+  --after:#E06A1F; --after-edge:#EE8A45; --after-ink:#A84A10; --after-soft:#FFE6D2;
+  --warn-ink:#8A5A0F; --warn-soft:#FBEBC4;
   --danger:#A23B32;
-  --heat-0:#EFEBE1; --heat-1:#D6E6DE; --heat-2:#A9CBBE; --heat-3:#6FA592; --heat-4:#2E5E4E;
+  --heat-0:#E5ECD9; --heat-1:#CBE8D2; --heat-2:#97D0A7; --heat-3:#58AE74; --heat-4:#2B7649;
   --t-desayuno:#C98A1B;     --t-desayuno-s:#F8EBCF;     --t-desayuno-i:#8A5A0F;
   --t-media_manana:#6F9136; --t-media_manana-s:#E8F0D8; --t-media_manana-i:#4D6B1F;
   --t-comida:#2F8A6E;       --t-comida-s:#DCEFE7;       --t-comida-i:#1F6B54;
@@ -51,7 +53,7 @@
   --on-color:#FFFFFF; --seg-on:var(--surface); --heat-ink-3:var(--ink); --heat-ink-4:#FFFFFF;
   /* v0.8 (D16): botón Registrar, gráficos de Patrones y saciedad. Sin semáforo: los colores
      de las emociones solo sirven para distinguirlas. */
-  --fab-shadow:0 8px 20px rgba(46,94,78,.4); --pat-barra:#CFC3DE;
+  --fab-shadow:0 8px 20px rgba(43,118,73,.4); --pat-barra:#F2B98C;
   --sac-hambre:#C98A1B; --sac-bien:#D9D3C5; --sac-pasado:#4B5BA8;
   --e-felicidad:#2C8368; --e-ansiedad:#C98A1B; --e-tristeza:#4B5BA8; --e-rabia:#A23B32; --e-culpa:#7A4E8C;
   --e-miedo:#5E6A64; --e-aburrimiento:#8FA39A; --e-frustracion:#AE5F27; --e-ninguna:#D6E6DE; --e-otra:#D9D3C5;
@@ -127,6 +129,11 @@ button{cursor:pointer}
 
 /* cabecera */
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:18px 14px}
+/* Botón de claro / oscuro (v0.13): pequeño, encima de exportar y Tu espacio, en su propia fila,
+   para que no pise nada aunque el título ocupe una sola línea. */
+.top .acts-col{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.top .round.tema{width:32px;height:32px}
+.top .round.tema .ico{width:16px;height:16px}
 .top .tt{min-width:0}
 .top .kick{margin:0 0 2px;font-size:14px;color:var(--ink-2)}
 .top h1{margin:0;font-family:var(--f-display);font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -602,7 +609,9 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 <path id="i-cena" d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>
 <path id="i-picoteo" d="M5 15a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M12.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0 M14 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
 <path id="i-cierre" d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M9 8h6 M9 12h6 M9 16h3"/>
-<path id="i-exportar" d="M12 15V3 M7 8l5-5 5 5 M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
+<path id="i-luna" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>
+<path id="i-sol" d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"/>
+<path id="i-exportar"d="M12 15V3 M7 8l5-5 5 5 M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
 <path id="i-hoy" d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"/>
 <path id="i-calendario" d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M3 10h18 M8 3v4 M16 3v4"/>
 <path id="i-persona" d="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M4 21a8 8 0 0 1 16 0"/>
@@ -639,7 +648,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.12.3';
+const VERSION='v0.13';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -825,6 +834,36 @@ function seed(){
 /* ---------- ayudas ---------- */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ico=(n,c)=>'<svg class="ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+esc(n)+'"/></svg>';
+/* Tema claro / oscuro (v0.13). Sin elegir nada, sigue al móvil (como hasta ahora); el botón de
+   luna o sol de la cabecera fija uno y se recuerda en este móvil. Las variables de los dos temas
+   ya existían: aquí solo se pone data-theme en <html>. En la app de Android, además, las franjas
+   de arriba y abajo se pintan del color del fondo. */
+const TEMA_KEY=STORE+'-tema';
+let temaElegido=null;
+try{const t=localStorage.getItem(TEMA_KEY);if(t==='light'||t==='dark')temaElegido=t;}catch(e){}
+const temaMovil=()=>window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+const temaActual=()=>temaElegido||temaMovil();
+function botonTema(){
+  const osc=temaActual()==='dark';
+  /* Con viewBox propio: los dibujos son de 24 unidades y el botón los pinta a 16 px sin recortarlos. */
+  return '<button type="button" class="round tema" id="temaBtn" aria-label="'+(osc?'Pasar a modo claro':'Pasar a modo oscuro')+'">'
+    +'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-'+(osc?'sol':'luna')+'"/></svg></button>';
+}
+function aplicarTema(){
+  const t=temaActual(),r=document.documentElement;
+  if(temaElegido)r.setAttribute('data-theme',temaElegido);else r.removeAttribute('data-theme');
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute('content',t==='dark'?'#141A17':'#F3F5EB'));
+  /* App de Android: las franjas de la hora y de los gestos, del color del fondo (MainActivity.java). */
+  try{const c=window.Capacitor,B=c&&c.isNativePlatform&&c.isNativePlatform()&&c.Plugins&&c.Plugins.Barras;
+    if(B)B.poner({fondo:t==='dark'?'#141A17':'#F3F5EB',oscuro:t==='dark'}).catch(()=>{});}catch(e){}
+  const b=$('temaBtn');if(b)b.outerHTML=botonTema();
+}
+function cambiarTema(){
+  temaElegido=temaActual()==='dark'?'light':'dark';
+  try{localStorage.setItem(TEMA_KEY,temaElegido);}catch(e){}
+  aplicarTema();
+}
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(!temaElegido)aplicarTema();});}catch(e){}
 /* SEG-22: las ingestas agrupadas por fecha, calculado una vez y rehecho solo cuando cambian los
    datos (save o refrescar suben datosVer). El Año y exportar un año ya no recorren todo por día. */
 let datosVer=0,idx=null;
@@ -966,8 +1005,9 @@ function render(){
       ?'<p class="kick">'+esc(cap(DIAS[hoyD.getDay()])+', '+hoyD.getDate()+' de '+MESES[hoyD.getMonth()])+'</p><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Comida Consciente')+'</h1>'
       :ui.sec==='cal'?'<h1>Calendario</h1>'
       :'<p class="kick">'+esc(periodoTxt()+' · '+plural(periodoIng().length,'ingesta','ingestas'))+'</p><h1>Patrones</h1>')+'</div>'
+    +'<div class="acts-col">'+botonTema()
     +'<div class="acts">'+(ui.sec==='pat'?'':'<button class="round" id="exportBtn" aria-label="Exportar">'+ico('exportar')+'</button>')
-    +'<button class="round me" id="meBtn" aria-label="Tu espacio">'+(me?esc(me):ico('persona'))+'</button></div>';
+    +'<button class="round me" id="meBtn" aria-label="Tu espacio">'+(me?esc(me):ico('persona'))+'</button></div></div>';
   $('banner').innerHTML=bannerHtml();
   $('view').innerHTML=ui.sec==='hoy'?renderHoy():ui.sec==='cal'?renderCal():renderPat();
   document.body.classList.toggle('con-ver',ui.sec==='pat'&&ui.pat==='buscar'&&!pat.vista&&!!Object.keys(data.ingestas).length);
@@ -2340,7 +2380,7 @@ function tickEspera(){
   paint();if(esperando())esperaTimer=setInterval(paint,1000);
 }
 function borrarTodo(){
-  [STORE,STORE+'-ui',STORE+'-perfil',STORE+'-fmt',STORE+'-roto'].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+  [STORE,STORE+'-ui',STORE+'-perfil',STORE+'-fmt',STORE+'-roto',TEMA_KEY].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
   location.reload();
 }
 document.addEventListener('visibilitychange',()=>{
@@ -2415,6 +2455,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.key){padKey(t.dataset.key);return;}
   if(t.dataset.pinflow){openPinFlow(t.dataset.pinflow);return;}
   if(t.id==='verPriv'){openPriv();return;}
+  if(t.id==='temaBtn'){cambiarTema();return;}
   if(t.id==='privVolver'||t.id==='privOk'){openMe();return;}
   if(t.dataset.bloqueo){perfil.bloqueo=t.dataset.bloqueo;savePerfil();document.querySelectorAll('[data-bloqueo]').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return;}
   if(t.id==='pinCancel'){if(flujo&&flujo.mode==='migrar')return;flujo=null;teclado=null;openMe();return;}
@@ -2583,6 +2624,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.id==='f-nombre'){e.preventDefault();e.target.blur();}
 });
 
+aplicarTema();
 data=load();
 if(perfil.pin)bloquear();else render();
 })();
