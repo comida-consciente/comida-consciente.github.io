@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QFhZa1a/uz4bKX3sSREwlo2HUksgVZu5mRncbgHUDdA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-O+0zbcM/MmEJbg37P2+w5VmLvPpORRU6LdrShg849/A='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -631,7 +631,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.12';
+const VERSION='v0.12.1';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -1915,8 +1915,32 @@ function fillExport(){
    archivo, una descarga normal. "Copiar como texto" sigue siempre como alternativa. */
 async function getDownloader(){
   try{const d=await (window.claude&&window.claude.use?window.claude.use('downloads'):null);if(d)return d;}catch(e){}
-  return {save:saveLocal};
+  return {save:saveNativo()?saveEnApp:saveLocal};
 }
+/* App de Android (Capacitor): el WebView no descarga archivos, así que se escribe el archivo en la
+   caché de la app y se abre el menú de Compartir del móvil (guardar en Archivos, Drive, enviarlo…).
+   En el navegador no existe window.Capacitor y todo sigue como antes. */
+function saveNativo(){
+  try{const c=window.Capacitor,p=c&&c.isNativePlatform&&c.isNativePlatform()&&c.Plugins;return p&&p.Filesystem&&p.Share?p:null;}catch(e){return null;}
+}
+async function saveEnApp({filename,data}){
+  const P=saveNativo();
+  const f=await P.Filesystem.writeFile({path:filename,data,directory:'CACHE',encoding:'utf8'});
+  try{await P.Share.share({title:filename,files:[f.uri]});}
+  catch(e){const x=new Error('declined');x.code='declined';throw x;}
+  finally{try{await P.Filesystem.deleteFile({path:filename,directory:'CACHE'});}catch(e){}}
+}
+/* Botón «atrás» de Android: cierra lo que esté encima, o vuelve a Hoy; desde Hoy, sale. Devuelve true si hizo algo. */
+function atras(){
+  if(bloqueada)return false;
+  if($('overlay').innerHTML){if(flujo&&flujo.mode==='migrar')return true;const n=$('f-nombre');if(n)setNombre(n.value);close();return true;}
+  if(ui.sec!=='hoy'){const b=document.querySelector('[data-sec="hoy"]');if(b){b.click();return true;}}
+  return false;
+}
+(function vigilarAtras(){
+  try{const c=window.Capacitor,A=c&&c.isNativePlatform&&c.isNativePlatform()&&c.Plugins&&c.Plugins.App;
+    if(A)A.addListener('backButton',()=>{if(!atras())A.exitApp();});}catch(e){}
+})();
 async function saveLocal({filename,data}){
   const type=/\.json$/.test(filename)?'application/json':/\.csv$/.test(filename)?'text/csv':'text/plain';
   const blob=new Blob([data],{type:type+';charset=utf-8'});

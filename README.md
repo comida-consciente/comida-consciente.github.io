@@ -39,7 +39,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12.1**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
 «Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
@@ -173,3 +173,20 @@ Las dos corrompen en silencio, sin dar error, y las dos están cubiertas:
 
 Aquí no entra ni un dato real: `diario/`, `derivado/`, las copias y las exportaciones de la
 app están en `.gitignore`. Los registros viven en el móvil de cada persona (D1, D12).
+
+## App de Android (`app-android/`)
+
+La misma web empaquetada con [Capacitor](https://capacitorjs.com/), para instalarla como app en
+Android. La web sigue siendo el único original: `app-android/` solo la copia y la envuelve.
+
+```
+cd app-android
+npm install      # la primera vez
+npm run apk      # APK firmado, para instalar en un móvil
+npm run aab      # AAB firmado, para Google Play
+```
+
+Necesita Java 21 y el Android SDK. La clave de firma vive fuera del repo
+(`~/Claves_Android/comida_consciente.*`); sin ella, `construir.mjs` se para. Dentro de la app,
+«Guardar copia» abre el menú de Compartir del móvil (el WebView no descarga archivos) y el botón
+«atrás» cierra hojas y vuelve a Hoy. Sin el permiso de internet: la app no se conecta a nada.

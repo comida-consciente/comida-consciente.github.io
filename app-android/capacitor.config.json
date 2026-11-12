@@ -1,0 +1,8 @@
+{
+  "appId": "icaraballo.comidaconsciente",
+  "appName": "Comida Consciente",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F6F4EE"
+  }
+}

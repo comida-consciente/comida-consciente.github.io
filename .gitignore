@@ -27,3 +27,11 @@ comida-consciente-*.txt
 .env
 .env.*
 .claude/settings.local.json
+
+# App de Android (app-android/): la copia de la web, las dependencias y lo que se genera al fabricar
+app-android/www/
+app-android/node_modules/
+*.apk
+*.aab
+*.jks
+*.keystore

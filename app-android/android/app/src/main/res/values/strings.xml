@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Comida Consciente</string>
+    <string name="title_activity_main">Comida Consciente</string>
+    <string name="package_name">icaraballo.comidaconsciente</string>
+    <string name="custom_url_scheme">icaraballo.comidaconsciente</string>
+</resources>
