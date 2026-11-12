@@ -39,7 +39,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12.2**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.12.3**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
 «Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
@@ -196,4 +196,4 @@ npm run aab      # AAB firmado, para Google Play
 Necesita Java 21 y el Android SDK. La clave de firma vive fuera del repo
 (`~/Claves_Android/comida_consciente.*`); sin ella, `construir.mjs` se para. Dentro de la app,
 «Guardar copia» abre el menú de Compartir del móvil (el WebView no descarga archivos) y el botón
-«atrás» cierra hojas y vuelve a Hoy. Sin el permiso de internet: la app no se conecta a nada.
+«atrás» cierra hojas, vuelve a Hoy y desde Hoy pregunta «¿Salir de Comida Consciente?» (Sí / No). Sin el permiso de internet: la app no se conecta a nada.

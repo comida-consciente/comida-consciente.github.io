@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uaDy1P3KVVBwB4Cc3/MPSlUEdOrw5djFdcAqOOQNuyo='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AhGGu1mMPwbJLk/PYL80vSjfZNtz+KgPLxfwFmrscGw='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -378,6 +378,13 @@ a.block.opinar:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .priv a{color:var(--accent);font-weight:700}
 .vaciohoy{margin:0 2px 14px;font-size:14px;color:var(--ink-2)}
 .ver{font-size:12px;color:var(--ink-2);text-align:center;margin:10px 0 0}
+/* «¿Salir de Comida Consciente?» (app de Android), como en La Colmena y Chromalchemy. */
+.salir-velo{position:fixed;inset:0;z-index:70;background:rgba(10,16,14,.45);display:grid;place-items:center;padding:24px}
+.salir-velo[hidden]{display:none}
+.salir-caja{width:100%;max-width:340px;background:var(--bg);border-radius:22px;padding:22px 20px 18px;box-shadow:var(--bar-shadow);text-align:center}
+.salir-caja h3{margin:0 0 6px;font-family:var(--f-display);font-weight:600;font-size:21px;color:var(--ink)}
+.salir-caja p{margin:0 0 18px;font-size:15px;color:var(--ink-2)}
+.salir-caja .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30;white-space:nowrap}
 /* ---------- Patrones (D16, §3.14) ---------- */
 .patseg{margin-bottom:12px}
@@ -632,7 +639,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.12.2';
+const VERSION='v0.12.3';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -1931,12 +1938,30 @@ async function saveEnApp({filename,data}){
   catch(e){const x=new Error('declined');x.code='declined';throw x;}
   finally{try{await P.Filesystem.deleteFile({path:filename,directory:'CACHE'});}catch(e){}}
 }
-/* Botón «atrás» de Android: cierra lo que esté encima, o vuelve a Hoy; desde Hoy, sale. Devuelve true si hizo algo. */
+/* Botón «atrás» de Android: cierra lo que esté encima, o vuelve a Hoy; desde Hoy (o con la app
+   bloqueada) pregunta «¿Salir de Comida Consciente?» Sí / No, como La Colmena y Chromalchemy.
+   Atrás con la pregunta abierta = «No». Devuelve true si hizo algo. */
+function salirCaja(){
+  let v=$('salir');if(v)return v;
+  v=document.createElement('div');v.id='salir';v.className='salir-velo';v.hidden=true;
+  v.innerHTML='<div class="salir-caja" role="dialog" aria-modal="true" aria-labelledby="salirT"><h3 id="salirT">¿Salir de Comida Consciente?</h3><p>Lo que has apuntado queda guardado.</p>'
+    +'<div class="row2"><button type="button" class="btn sec" id="salirNo">No</button><button type="button" class="btn primary" id="salirSi">Sí, salir</button></div></div>';
+  document.body.appendChild(v);
+  const cerrar=()=>{v.hidden=true;};
+  $('salirNo').addEventListener('click',cerrar);
+  v.addEventListener('click',e=>{if(e.target===v)cerrar();});
+  $('salirSi').addEventListener('click',()=>{cerrar();try{window.Capacitor.Plugins.App.exitApp();}catch(e){}});
+  return v;
+}
 function atras(){
-  if(bloqueada)return false;
-  if($('overlay').innerHTML){if(flujo&&flujo.mode==='migrar')return true;const n=$('f-nombre');if(n)setNombre(n.value);close();return true;}
-  if(ui.sec!=='hoy'){const b=document.querySelector('[data-sec="hoy"]');if(b){b.click();return true;}}
-  return false;
+  const s=$('salir');
+  if(s&&!s.hidden){s.hidden=true;return true;}
+  if(!bloqueada){
+    if($('overlay').innerHTML){if(flujo&&flujo.mode==='migrar')return true;const n=$('f-nombre');if(n)setNombre(n.value);close();return true;}
+    if(ui.sec!=='hoy'){const b=document.querySelector('[data-sec="hoy"]');if(b){b.click();return true;}}
+  }
+  salirCaja().hidden=false;$('salirNo').focus({preventScroll:true});
+  return true;
 }
 (function vigilarAtras(){
   try{const c=window.Capacitor,A=c&&c.isNativePlatform&&c.isNativePlatform()&&c.Plugins&&c.Plugins.App;
