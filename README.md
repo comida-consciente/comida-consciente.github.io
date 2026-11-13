@@ -193,6 +193,9 @@ npm run apk      # APK firmado, para instalar en un móvil
 npm run aab      # AAB firmado, para Google Play
 ```
 
+Antes de fabricar pasa las pruebas de la web (`PRUEBAS` en `construir.mjs`, con el `.venv` de la raíz); si alguna falla, no sale ni APK ni AAB.
+Para saltarlas en un caso urgente: `npm run apk -- --sin-tests` (avisa en voz alta).
+
 Necesita Java 21 y el Android SDK. La clave de firma vive fuera del repo
 (`~/Claves_Android/comida_consciente.*`); sin ella, `construir.mjs` se para. Dentro de la app,
 «Guardar copia» abre el menú de Compartir del móvil (el WebView no descarga archivos) y el botón
