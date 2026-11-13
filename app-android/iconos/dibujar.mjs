@@ -19,7 +19,7 @@ const glifo = `<g fill="none" stroke="${CREMA}" stroke-width="3.6" stroke-lineca
 // escala: qué parte de la imagen ocupa el dibujo (centrado en su caja de 64×64; el glifo ocupa x 11–49).
 function dibujar(nombre, lado, escala, fondo) {
   const h = lado * escala, x = (lado - h) / 2;
-  const dibujo = escala ? `<svg x="${x}" y="${x}" width="${h}" height="${h}" viewBox="0 0 64 64"><g transform="translate(-4 0)">${glifo}</g></svg>` : '';
+  const dibujo = escala ? `<svg x="${x}" y="${x}" width="${h}" height="${h}" viewBox="0 0 64 64"><g transform="translate(0.5 0)">${glifo}</g></svg>` : '';
   const html = `<!doctype html><style>html,body{margin:0;background:${fondo || 'transparent'};overflow:hidden}</style>
 <svg width="${lado}" height="${lado}">${dibujo}</svg>`;
   const f = join(tmpdir(), `cc-${nombre}.html`);
