@@ -10,10 +10,11 @@ con `Tareas/CC-Instrucciones.md` del vault, **manda el vault**.
 
 ## Las cinco reglas que no se deducen del código
 
-1. **La fuente de verdad es la app, en el dispositivo** (D1 revisada). El
-   markdown es un formato de exportación, y tiene que seguir el esquema para
-   que `validar.py` y `parsear.py` funcionen sobre él. Sin cuentas: cada móvil
-   es una persona (D12).
+1. **La fuente de verdad es la app, en el dispositivo** (D1 revisada). Sin
+   cuentas: cada móvil es una persona (D12). La app tiene sus propias listas
+   (con mayúsculas y tildes, en `index.html`) y su copia `.json`; **no exporta
+   en el formato diario** (frontmatter YAML) que leen las herramientas de
+   Python, que son de la v0.1 (D23).
 2. **Registrar tiene que costar menos de 20 segundos.** El proyecto no fracasa
    por bugs, fracasa por abandono del registro. Cualquier campo obligatorio
    nuevo es una amenaza directa.
@@ -41,9 +42,12 @@ un registro de conciencia, no de control. Si se pide algo de esta lista, señala
 
 ## Antes de tocar el esquema
 
-Se actualiza primero `Diseño/CC-Esquema-de-Datos.md` en el vault, después
-`esquema/dia.schema.json`. En ese orden. Los enums no se escriben a mano en
-ningún otro sitio: se leen del schema. Tampoco en el JS de la app (`index.html`).
+El esquema (`esquema/dia.schema.json`) es el de las herramientas de Python
+(v0.1: `validar.py`, `parsear.py`, `ver.py`), no el de la app. Se actualiza
+primero `Diseño/CC-Esquema-de-Datos.md` en el vault, después el schema. En ese
+orden. Dentro de las herramientas de Python, los enums no se escriben a mano:
+se leen del schema. La app no lo usa (D23): un cambio en la app no obliga a
+tocar el esquema, ni al revés.
 
 ## Fixtures
 
@@ -56,7 +60,8 @@ el cambio está mal. `fixtures/CC-Fixtures.md` explica qué prueba cada uno.
   aunque la app se llame Comida Consciente. Cambiarlas vaciaría los móviles y dejaría
   inservibles las copias guardadas.
 - **CSP con hash.** Cualquier cambio dentro del `<script>` de `index.html` cambia su hash:
-  después de editarlo, `python3 tests/csp.py --escribir`, y `pytest` lo comprueba. Nunca
+  después de editarlo, `python3 tests/csp.py --escribir`, y `pytest` lo comprueba. La lógica de la app tiene sus
+  pruebas en `node --test tests/app.test.mjs`; las dos se pasan solas antes de cada APK. Nunca
   `'unsafe-inline'` en `script-src`, ni `connect-src` distinto de `'none'`: «nada sale del móvil»
   tiene que poder comprobarse.
 - Lo que llega de una copia pasa por `sanearIngesta`/`sanearDia`, y todo lo que entra en el HTML,
