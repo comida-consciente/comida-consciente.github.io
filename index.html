@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ihcM+isSlOAsdTZ1BPal/w9EGaj9wgQy8M+OmEA/Zwc='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AIGbLGZ8d4t2+qEinAZTpGbhc2Jk8xTTOsvhFx9d6zA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -649,7 +649,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.15';
+const VERSION='v0.16';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -725,7 +725,10 @@ let guardadoFalla=false;
 let ultimoRaw=null;
 async function refrescar(){
   try{
-    const raw=localStorage.getItem(STORE);if(!raw||raw===ultimoRaw)return false;
+    const raw=localStorage.getItem(STORE);
+    /* Lo había y ya no está: lo han borrado desde otra pestaña («Borrar todos mis datos»). No se vuelve a escribir. */
+    if(!raw&&ultimoRaw){ultimoRaw=null;data={ingestas:{},dias:{},etiquetasDistintas:[]};datosVer++;return true;}
+    if(!raw||raw===ultimoRaw)return false;
     let d=JSON.parse(raw);
     if(esSobre(d)){if(!clave)return false;d=JSON.parse(await descifrar(d,clave));}
     if(esObj(d)&&esObj(d.ingestas)){data=normData(d);ultimoRaw=raw;datosVer++;return true;}
@@ -916,7 +919,10 @@ const esObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const RE_ID=/^[A-Za-z0-9_-]{1,40}$/;
 const idValido=v=>typeof v==='string'&&RE_ID.test(v)&&!(v in Object.prototype)&&v!=='__proto__'&&v!=='prototype';
 const fechaValida=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&iso(parse(v))===v;
-const txt=v=>typeof v==='string'?v:typeof v==='number'&&isFinite(v)?String(v):'';
+/* Tope para los textos libres (lo escrito y lo que llega de una copia) y para el tamaño de una copia:
+   un archivo enorme o manipulado no puede congelar la app ni llenar el almacenamiento. */
+const TXT_MAX=4000,IMPORT_MAX=10*1024*1024;
+const txt=v=>(typeof v==='string'?v:typeof v==='number'&&isFinite(v)?String(v):'').slice(0,TXT_MAX);
 const uno=(v,opts)=>typeof v==='string'&&opts.includes(v)?v:'';
 const varios=(v,opts)=>Array.isArray(v)?[...new Set(v.filter(e=>typeof e==='string'&&opts.includes(e)))]:[];
 const horaValida=v=>{if(typeof v!=='string')return '';const m=v.match(/^(\d{2}):(\d{2})$/);return m&&+m[1]<24&&+m[2]<60?v:'';};
@@ -940,7 +946,8 @@ function sanearDia(di){
   if(typeof di.agua==='string')o.agua=di.agua;
   normDia(o);
   [['agua',STEPS.agua.max],['actividadHoras',STEPS.actividadHoras.max],['suenoHoras',STEPS.suenoHoras.max]].forEach(([k,max])=>{
-    if(k==='agua'&&typeof o.agua==='number')return;
+    /* El agua escrita como texto («2 litros») ya viene en o.agua: también tiene su máximo; si se pasa, se queda como texto. */
+    if(k==='agua'&&typeof o.agua==='number'){if(!(o.agua>=0&&o.agua<=max)){if(!o.aguaTexto)o.aguaTexto=txt(di.agua);delete o.agua;}return;}
     const v=typeof di[k]==='string'&&di[k].trim()!==''?Number(di[k].replace(',','.')):di[k];
     if(typeof v==='number'&&isFinite(v)&&v>=0&&v<=max)o[k]=v;
   });
@@ -1014,8 +1021,19 @@ function render(){
   document.body.classList.toggle('con-ver',ui.sec==='pat'&&ui.pat==='buscar'&&!pat.vista&&!!Object.keys(data.ingestas).length);
   document.querySelectorAll('.bar .sec').forEach(b=>{if(b.dataset.sec===ui.sec)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
 }
+/* Si al abrir había datos que no se podían leer, load() los apartó en -roto: se avisa y se pueden
+   descargar tal cual o descartar. Al activar el PIN se borran (no se cifran: no se sabe qué son). */
+const hayRoto=()=>{try{return !!localStorage.getItem(STORE+'-roto');}catch(e){return false;}};
+async function bajarRoto(){
+  let raw=null;try{raw=localStorage.getItem(STORE+'-roto');}catch(e){}
+  if(!raw)return;
+  const dl=await getDownloader();
+  try{await dl.save({filename:'comida-consciente-no-leido-'+TODAY+'.txt',data:raw});toast('Descargado');}
+  catch(e){if(!(e&&e.code==='declined'))toast('No se ha podido descargar');}
+}
 function bannerHtml(){
   if(guardadoFalla)return '<div class="banner" role="alert"><span>No se ha podido guardar en este móvil. Guarda una copia antes de cerrar la app.</span><div class="row2"><button class="btn primary small" id="bannerBackup">Guardar copia</button></div></div>';
+  if(hayRoto())return '<div class="banner" role="alert"><span>Había registros guardados que <b>no se han podido leer</b>. Descárgalos tal cual antes de descartarlos.</span><div class="row2"><button class="btn primary small" id="rotoBaj">Descargar lo que había</button><button class="btn ghost small" id="rotoNo">Descartar</button></div></div>';
   if(data.ejemplos)return '<div class="banner"><span>Estás viendo <b>datos de ejemplo</b>. Lo que apuntes se queda solo en este móvil.</span><div class="row2"><button class="btn primary small" id="clearEx">Empezar en blanco</button></div></div>';
   const reales=Object.values(data.ingestas).filter(x=>!x.ejemplo).length;
   const dias=data.ultimaCopia?Math.floor((Date.now()-new Date(data.ultimaCopia).getTime())/864e5):null;
@@ -1158,7 +1176,8 @@ const SAC_TXT={'Con hambre':'Quedé con hambre','Bien':'Quedé bien','Me he pasa
 const filtroVacio=()=>({texto:'',emoAntes:[],dias:[],hambre:'',saciedad:'',tipos:[],etiquetas:[],sinEtiquetas:false,emoDespues:[],energia:[],sintomas:[],franjas:[],lugar:[]});
 /* Los filtros y el periodo se recuerdan mientras la app está abierta, solo en memoria:
    combinados son datos sensibles. */
-let pat={periodo:'mes',vista:'',filtros:filtroVacio(),origen:'',t2:'a',t6:'',mas:50,etqTodas:false,abiertas:new Set()};
+const patVacio=()=>({periodo:'mes',vista:'',filtros:filtroVacio(),origen:'',t2:'a',t6:'',mas:50,etqTodas:false,abiertas:new Set()});
+let pat=patVacio();
 let volverRes=false;
 const pctN=(a,b)=>b?Math.round(100*a/b):0;
 const pctTxt=n=>n+' %';
@@ -1630,11 +1649,11 @@ function openIngesta(id,tipo,part){
   const openC=!!(id&&(draft.lugar||draft.pantalla||draft.etiquetas.length));
   /* Plegados, los bloques enseñan debajo del título lo que tienen (resumenForm). */
   const sum=(cls,title,op)=>'<summary><span class="bd"></span><span class="tw"><h4>'+title+'</h4><span class="res"></span></span><span class="op">'+op+'</span><span class="chev" aria-hidden="true">⌄</span></summary>';
-  const other=(name,val,label,shown)=>'<div class="field" data-other="'+name+'"'+(shown?'':' hidden')+'><label for="f-'+name+'">'+label+'</label><input type="text" id="f-'+name+'" value="'+esc(val)+'"></div>';
+  const other=(name,val,label,shown)=>'<div class="field" data-other="'+name+'"'+(shown?'':' hidden')+'><label for="f-'+name+'">'+label+'</label><input type="text" id="f-'+name+'" maxlength="'+TXT_MAX+'" value="'+esc(val)+'"></div>';
   $('overlay').innerHTML='<div class="scrim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><form class="sheet-in" id="fIng">'
     +'<div class="sheet-head"><button type="button" class="btn ghost" data-close>Cancelar</button><h3 id="sh-t">'+(id?'Editar':'Nuevo registro')+'</h3><button class="btn primary small" type="submit">Guardar</button></div>'
     +'<div class="block"><div class="field"><span class="lbl">¿Qué comida?</span>'+tipos+'</div>'
-    +'<div class="field"><label for="f-alimentos">Alimentos y bebidas</label><input type="text" id="f-alimentos" placeholder="Ej.: café con leche y tostada" value="'+esc(draft.alimentos)+'" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="aliSug">'
+    +'<div class="field"><label for="f-alimentos">Alimentos y bebidas</label><input type="text" id="f-alimentos" maxlength="'+TXT_MAX+'" placeholder="Ej.: café con leche y tostada" value="'+esc(draft.alimentos)+'" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="aliSug">'
     +'<div class="sug" id="aliSug" role="listbox" aria-label="Alimentos que ya has apuntado" hidden></div></div>'
     +'<div class="whenrow"><div class="field"><label for="f-hora">Hora</label><input type="time" id="f-hora" value="'+esc(draft.hora)+'"></div>'
     +'<div class="field"><span class="lbl">Día</span><span class="day">'+esc(cap(longDate(draft.fecha)))+'</span></div></div></div>'
@@ -1642,7 +1661,7 @@ function openIngesta(id,tipo,part){
     +segrow('hambre','¿Tengo hambre?',HAMBRE,draft.hambre)
     +'<div class="field"><legend>¿Cómo me siento?</legend>'+pick('emoAntes',EMOCIONES.concat('Otra'),draft.emoAntes.concat(draft.emoAntesOtra?['Otra']:[]),true)+'</div>'
     +other('emoAntesOtra',draft.emoAntesOtra,'Otra emoción',!!draft.emoAntesOtra)
-    +'<div class="field"><label for="f-pensAntes">¿Qué pienso?</label><textarea id="f-pensAntes">'+esc(draft.pensAntes)+'</textarea></div></div></details>'
+    +'<div class="field"><label for="f-pensAntes">¿Qué pienso?</label><textarea id="f-pensAntes" maxlength="'+TXT_MAX+'">'+esc(draft.pensAntes)+'</textarea></div></div></details>'
     /* Contexto y etiquetas (D16): «¿Con pantalla?» ya no se pregunta; la de los registros viejos se conserva. */
     +'<details class="block contexto"'+(openC?' open':'')+'>'+sum('contexto','Contexto y etiquetas','opcional')+'<div class="inner">'
     +segrow('lugar','¿Dónde?',LUGAR,draft.lugar)
@@ -1656,7 +1675,7 @@ function openIngesta(id,tipo,part){
     +'<details class="block despues"'+(openD?' open':'')+'>'+sum('despues','Después de comer','Puedes rellenarlo luego')+'<div class="inner">'
     +'<div class="field"><legend>¿Cómo me siento?</legend>'+pick('emoDespues',EMOCIONES.concat('Otra'),draft.emoDespues.concat(draft.emoDespuesOtra?['Otra']:[]),true)+'</div>'
     +other('emoDespuesOtra',draft.emoDespuesOtra,'Otra emoción',!!draft.emoDespuesOtra)
-    +'<div class="field"><label for="f-pensDespues">¿Qué pienso?</label><textarea id="f-pensDespues">'+esc(draft.pensDespues)+'</textarea></div>'
+    +'<div class="field"><label for="f-pensDespues">¿Qué pienso?</label><textarea id="f-pensDespues" maxlength="'+TXT_MAX+'">'+esc(draft.pensDespues)+'</textarea></div>'
     +segrow('saciedad','¿Cómo me he quedado?',SACIEDAD,draft.saciedad).replace('class="segrow"','class="segrow sac"')
     +'<div class="field"><legend>Energía</legend>'+pick('energia',ENERGIA.concat('Otro'),draft.energia,false)+'</div>'
     +other('energiaOtro',draft.energiaOtro,'Otra energía',draft.energia==='Otro')
@@ -1804,7 +1823,7 @@ async function guardarIngesta(){
 /* ---------- hoja: cierre del día ---------- */
 function openDay(){
   const di=data.dias[ui.cursor]||{};
-  const f=(k,l,ta)=>'<div class="field"><label for="d-'+k+'">'+l+'</label>'+(ta?'<textarea id="d-'+k+'">'+esc(di[k]||'')+'</textarea>':'<input type="text" id="d-'+k+'" value="'+esc(di[k]||'')+'">')+'</div>';
+  const f=(k,l,ta)=>'<div class="field"><label for="d-'+k+'">'+l+'</label>'+(ta?'<textarea id="d-'+k+'" maxlength="'+TXT_MAX+'">'+esc(di[k]||'')+'</textarea>':'<input type="text" id="d-'+k+'" maxlength="'+TXT_MAX+'" value="'+esc(di[k]||'')+'">')+'</div>';
   const st=(k,l)=>'<div class="field"><legend id="lb-'+k+'">'+l+'</legend><div class="step" data-step="'+k+'" role="group" aria-labelledby="lb-'+k+'"><button type="button" data-dec aria-label="Menos">−</button>'+stepOut(k,di[k])+'<button type="button" data-inc aria-label="Más">＋</button></div></div>';
   const cal='<div class="field"><legend>¿Qué tal he dormido?</legend><div class="pick" data-pick="suenoCalidad" data-multi="0">'+CALIDAD.map(o=>'<button type="button" data-v="'+o+'" aria-pressed="'+(di.suenoCalidad===o)+'">'+o+'</button>').join('')+'</div></div>';
   $('overlay').innerHTML='<div class="scrim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="grab" aria-hidden="true"></div><form class="sheet-in" id="fDay">'
@@ -1959,13 +1978,10 @@ function fillExport(){
   document.querySelectorAll('[data-scope]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scope===exp.scope)));
 }
 /* ---------- guardar archivos ----------
-   Dentro de Claude.ai, su función de descargas. Fuera (GitHub Pages, la PWA): en el móvil,
-   la hoja de compartir del sistema ("Guardar en Archivos"); si no la hay o no acepta el
-   archivo, una descarga normal. "Copiar como texto" sigue siempre como alternativa. */
-async function getDownloader(){
-  try{const d=await (window.claude&&window.claude.use?window.claude.use('downloads'):null);if(d)return d;}catch(e){}
-  return {save:saveNativo()?saveEnApp:saveLocal};
-}
+   En la app de Android, el menú de Compartir (saveEnApp). En el navegador del móvil, la hoja de
+   compartir del sistema ("Guardar en Archivos"); si no la hay o no acepta el archivo, una descarga
+   normal. "Copiar como texto" sigue siempre como alternativa. */
+async function getDownloader(){return {save:saveNativo()?saveEnApp:saveLocal};}
 /* App de Android (Capacitor): el WebView no descarga archivos, así que se escribe el archivo en la
    caché de la app y se abre el menú de Compartir del móvil (guardar en Archivos, Drive, enviarlo…).
    En el navegador no existe window.Capacitor y todo sigue como antes. */
@@ -2104,7 +2120,7 @@ function sobreBlock(){
     +(esApp()
       ?'<p><b>Dónde están tus datos.</b> Solo en esta app, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si desinstalas la app o borras sus datos, se pierden: guarda una copia de vez en cuando.</p>'
       :'<p><b>Dónde están tus datos.</b> Solo en este navegador, en este móvil. No hay servidor, ni cuentas, ni estadísticas de uso. Si borras los datos del navegador, se pierden: guarda una copia de vez en cuando.</p>')
-    +'<p><b>Con PIN</b>, lo que apuntas se guarda cifrado: sin el PIN no se puede leer.</p>'
+    +'<p><b>Con PIN</b>, lo que apuntas se guarda cifrado y la app lo pide al abrirse. Protege frente a quien coja el móvil; no sustituye al bloqueo de pantalla del teléfono.</p>'
     +(esApp()?'':'<p><b>En iPhone.</b> Añádela a la pantalla de inicio (Compartir → «Añadir a pantalla de inicio»). Si no, Safari puede borrar los datos de una web que no abres en 7 días.</p>')
     +'<p><b>No es una herramienta médica</b> ni da consejos de alimentación. Lo que veas en Patrones son pistas para pensar o para comentar con un profesional.</p>'
     +'<div id="wipeBox"><button type="button" class="btn danger" id="wipeMe">Borrar todos mis datos</button></div>'
@@ -2166,12 +2182,14 @@ async function showBackupText(msg){
   await refrescar();data.ultimaCopia=new Date().toISOString();await save();render();
 }
 function readImport(file){
+  if(file.size>IMPORT_MAX){$('importMsg').innerHTML='<p class="status" style="color:var(--danger)">Ese archivo es demasiado grande para ser una copia de Comida Consciente.</p>';return;}
   const r=new FileReader();
   r.onload=()=>parseImport(r.result);
   r.readAsText(file);
 }
 function parseImport(text){
   try{
+    if(String(text).length>IMPORT_MAX)throw 0;
     const o=JSON.parse(String(text).trim());
     if(!o||o.app!=='comida-app'||!Array.isArray(o.ingestas))throw 0;
     const m=mergeImport(o),fecha=m.exportado?'del '+esc(new Date(m.exportado).toLocaleDateString('es-ES')):'sin fecha';
@@ -2287,6 +2305,8 @@ async function cifrarConPin(pin){
   const k=await derivarClave(pin,salt,CLAVE_ITER);
   const raw=await cifrar(JSON.stringify(data),k,kdf);
   localStorage.setItem(STORE,raw);
+  try{localStorage.removeItem(STORE+'-roto');}catch(e){}
+  {const b=$('banner');if(b&&!bloqueada)b.innerHTML=bannerHtml();}
   clave=k;sobreKdf=kdf;ultimoRaw=raw;guardadoFalla=false;
   perfil.pin={cifra:true,len:PIN_LARGO};perfil.fallos=0;perfil.esperaHasta=0;savePerfil();
 }
@@ -2340,6 +2360,9 @@ function bloquear(){
   pendingImport=null;
   /* D18: con cifrado, la app olvida los datos y la clave hasta el PIN. */
   if(perfil.pin.cifra){data=null;clave=null;datosVer++;}
+  /* Tampoco se quedan en memoria el índice de días, los filtros de Patrones, lo que se iba a exportar
+     ni el estado de Tus etiquetas. */
+  idx=null;pat=patVacio();exp={scope:'dia',ref:TODAY};etqUi={};
   const L=$('lock');L.hidden=false;
   L.innerHTML='<div class="pinbox"><div class="lk">'+ico('candado')+'</div><h1>'+(perfil.nombre?'Hola, '+esc(perfil.nombre):'Hola')+'</h1>'
     +(hayCrypto()?padHtml(largoPin())+'<button class="pinlink" id="forgotBtn">¿Has olvidado el PIN?</button><div id="forgotBox"></div>'
@@ -2364,9 +2387,14 @@ async function desbloquearCon(pin){
     if(perfil.pin&&!perfil.pin.cifra){flujo={mode:'migrar',first:''};pasoPin('elegir');}
     return;
   }
+  contarFallo();padFallo('PIN incorrecto');tickEspera();
+}
+/* Un PIN mal puesto, al desbloquear o al cambiarlo o quitarlo. Al quinto, 30 s de espera: devuelve true. */
+function contarFallo(){
   perfil.fallos=(perfil.fallos||0)+1;
-  if(perfil.fallos>=FALLOS_MAX){perfil.fallos=0;perfil.esperaHasta=Date.now()+ESPERA_MS;}
-  savePerfil();padFallo('PIN incorrecto');tickEspera();
+  const tope=perfil.fallos>=FALLOS_MAX;
+  if(tope){perfil.fallos=0;perfil.esperaHasta=Date.now()+ESPERA_MS;}
+  savePerfil();return tope;
 }
 /* Tras 5 fallos seguidos, 30 s sin teclado y con cuenta atrás. Sobrevive a recargar. */
 function tickEspera(){
@@ -2408,7 +2436,9 @@ function pasoPin(step,msg,ok){
   const tit={activar:'Activar PIN',cambiar:'Cambiar PIN',quitar:'Quitar PIN',migrar:'PIN nuevo'}[flujo.mode];
   let body='';
   if(step==='nombre')body='<h2>¿Cómo te llamas?</h2><p>Saldrá al abrir la app.</p><div class="field" style="width:100%;text-align:left"><label for="f-pnombre">Tu nombre</label><input type="text" id="f-pnombre" maxlength="30" autocomplete="given-name"></div><button class="btn primary" id="pinNombreOk">Seguir</button>';
-  else if(step==='aviso')body='<h2>Antes de activarlo</h2><div class="pinwarn"><b>Con PIN, tus datos se guardan cifrados.</b> Si lo olvidas, nadie puede recuperarlos: ni tú, ni nosotros. Solo podrás empezar de cero y recuperar una copia. Guarda una copia antes.</div>'
+  else if(step==='aviso')body='<h2>Antes de activarlo</h2><div class="pinwarn"><b>Con PIN, tus datos se guardan cifrados.</b> Si lo olvidas, no hay forma de recuperarlos: solo podrás empezar de cero y recuperar una copia. Guarda una copia antes.</div>'
+    +'<p class="pin-st">El PIN protege frente a quien coja el móvil; no sustituye al bloqueo de pantalla del teléfono.</p>'
+    +(hayRoto()?'<p class="pin-st">Hay registros que no se pudieron leer: al activar el PIN se borrarán. <button class="pinlink" id="rotoBaj">Descargarlos antes</button></p>':'')
     +'<p class="pin-st">'+esc(ultimaCopiaTxt())+'</p><div class="row2" style="justify-content:center"><button class="btn sec" id="pinCopia">'+ico('descarga')+'Guardar copia ahora</button><button class="btn primary" id="pinActivar">Activar</button></div>';
   else if(step==='trabajando')body='<h2>Cifrando tus datos…</h2><p>Un momento.</p>';
   else body='<h2>'+{actual:'Escribe tu PIN actual',elegir:'Elige un PIN de 6 cifras',repetir:'Repítelo'}[step]+'</h2>'
@@ -2420,7 +2450,9 @@ function pasoPin(step,msg,ok){
   if(step==='nombre')$('f-pnombre').focus();
   if(step==='actual')padStart(async pin=>{
     pinMsg('Comprobando…',true);
-    if(!(await verificarPin(pin))){padFallo('PIN incorrecto');return;}
+    /* Al quinto fallo se cierra la hoja y la app se bloquea, con la misma espera que al abrirla. */
+    if(!(await verificarPin(pin))){if(contarFallo()){close();bloquear();}else padFallo('PIN incorrecto');return;}
+    if(perfil.fallos){perfil.fallos=0;savePerfil();}
     if(flujo.mode==='quitar'){
       try{if(perfil.pin.cifra)await quitarCifrado();else{perfil.pin=null;perfil.fallos=0;perfil.esperaHasta=0;savePerfil();}finPin('PIN quitado');}
       catch(e){padFallo('No se ha podido guardar en este móvil');}
@@ -2480,6 +2512,8 @@ document.addEventListener('click',e=>{
   if(t.id==='exportBtn'){openExport();return;}
   if(t.id==='meBtn'){openMe();return;}
   if(t.id==='bannerBackup'){openBackup('guardar');return;}
+  if(t.id==='rotoBaj'){bajarRoto();return;}
+  if(t.id==='rotoNo'){if(t.dataset.armed){try{localStorage.removeItem(STORE+'-roto');}catch(e){}render();toast('Descartado');}else{t.dataset.armed='1';t.textContent='¿Seguro? Pulsa otra vez';}return;}
   if(t.id==='snooze'){ui.posponer=TODAY;saveUi();render();return;}
   if(t.id==='saveBackup'){saveBackup();return;}
   if(t.id==='pickFile'){$('importFile').click();return;}
@@ -2579,6 +2613,8 @@ document.addEventListener('toggle',e=>{const c=e.target.dataset&&e.target.datase
 /* SEG-10: otra pestaña ha guardado. Sin nada a medias, se lee y se pinta; con una hoja abierta,
    lo hace refrescar() al guardar. */
 window.addEventListener('storage',e=>{
+  /* Otra pestaña ha borrado los datos: esta vuelve a empezar, aunque tenga algo a medias. */
+  if((e.key===STORE&&e.newValue===null||e.key===null)&&ultimoRaw!==null){location.reload();return;}
   /* Si otra pestaña cambia el PIN o lo quita, esta vuelve a empezar (lo suyo ya está guardado). */
   if(e.key===STORE+'-perfil'&&!draft){location.reload();return;}
   if(e.key!==STORE&&e.key!==null)return;

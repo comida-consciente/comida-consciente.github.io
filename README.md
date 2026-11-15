@@ -39,7 +39,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.13**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.16**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
 «Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
@@ -56,8 +56,14 @@ sus propios datos (D12). La copia de seguridad es `version: 3`.
 - **Cifrado (D18).** Con PIN (6 cifras), lo guardado es un sobre `{"cifrado":1, kdf, iv, comp, datos}`:
   AES-GCM de 256 bits con clave PBKDF2-SHA-256 de 600 000 vueltas, comprimido con gzip antes de
   cifrar. No se guarda ningún hash del PIN: se comprueba al descifrar. Al bloquear, la app olvida
-  los datos y la clave. La copia de seguridad va sin cifrar. `save()` y `refrescar()` son
+  los datos, la clave, el índice de días y los filtros de Patrones. Seis cifras frenan a quien coge el
+  móvil (5 fallos, al abrir o al cambiar o quitar el PIN → 30 s), no a quien copie el almacenamiento y
+  pruebe el millón de combinaciones fuera de la app: los textos lo dicen así. La copia de seguridad va sin cifrar. `save()` y `refrescar()` son
   asíncronos: se esperan con `await` antes de decir «Guardado».
+- **Lo que no se puede leer** al abrir se aparta en `comida-app-proto-v1-roto`: la app lo avisa con
+  «Descargar lo que había» / «Descartar», y se borra al activar el PIN.
+- **Pruebas de la lógica** (sanear copias, fusionar, cifrar, CSV, PIN, bloqueo): `node --test
+  tests/app.test.mjs`. Cargan el script de `index.html` en Node sin navegador (`tests/entorno-app.mjs`).
 - Para probarla en local: `python3 -m http.server` en la raíz del repo y abrir
   `http://127.0.0.1:8000/`. El PIN necesita `localhost` o https (Web Crypto), no `file://`.
 

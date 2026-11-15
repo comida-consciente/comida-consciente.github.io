@@ -12,7 +12,7 @@ const que = process.argv[2];
 // Si alguna falla no sale ni APK ni AAB. Para saltarlas en un caso urgente: `npm run apk -- --sin-tests`.
 // Necesita el entorno virtual de la web (.venv, ver README de arriba): python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
 const py = process.platform === 'win32' ? '.venv\\Scripts\\python' : '.venv/bin/python';
-const PRUEBAS = [`${py} -m pytest tests -q`];
+const PRUEBAS = [`${py} -m pytest tests -q`, 'node --test tests/app.test.mjs'];
 const tareas = { apk: 'assembleRelease', aab: 'bundleRelease' };
 if (!tareas[que]) { console.error('Uso: node construir.mjs apk|aab'); process.exit(1); }
 if (!existsSync(join(homedir(), 'Claves_Android', 'comida_consciente.properties'))) {

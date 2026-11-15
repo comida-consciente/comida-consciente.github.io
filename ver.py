@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     salida = generar(tabla_dias(dias), tabla_ingestas(dias),
-                     args.salida, str(args.ruta.resolve()))
+                     args.salida, args.ruta.resolve().name))  # solo el nombre: el visor se comparte
     ingestas = sum(len(d.ingestas) for d in dias)
     print(f"{len(dias)} día(s) · {ingestas} ingesta(s) → {salida.resolve()}")
     if not args.no_abrir:
