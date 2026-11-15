@@ -190,7 +190,8 @@ La política de privacidad pública es [`privacidad.html`](https://comida-consci
 `index.html`) y que este apartado: **si cambia una, cambiar las tres**. Resumen: sin servidor, cuentas,
 analítica ni cookies; los datos se quedan en el dispositivo (con PIN, cifrados); la app de Android no
 tiene permiso de internet ni copia automática a la nube; «Opinar» abre un formulario de Google sin
-datos de lo apuntado.
+datos de lo apuntado (lo que se envía lo recibe Google LLC y se guarda mientras sirva para mejorar la
+app o hasta que se pida borrarlo).
 
 ## App de Android (`app-android/`)
 
