@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AIGbLGZ8d4t2+qEinAZTpGbhc2Jk8xTTOsvhFx9d6zA='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-61kobb4bfnxbbyDXrK2C0PH3CdvPZZvk0lFIRVGWNDI='; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Comida Consciente</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -19,6 +19,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- v0.17: instalable y sin conexión. En iPhone, «Añadir a pantalla de inicio» la abre a pantalla completa. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Comida Consciente">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F3F5EB" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141A17" media="(prefers-color-scheme: dark)">
 <style>
@@ -649,7 +655,7 @@ body.veil .app,body.veil .dock,body.veil .fade,body.veil #overlay{visibility:hid
 
 <script>
 (function(){
-const VERSION='v0.16';
+const VERSION='v0.17';
 /* La clave de guardado y la marca de la copia («app»: 'comida-app') NO cambian con el nombre
    (D17, punto 4): cambiarlas vaciaría los móviles e invalidaría las copias guardadas. */
 const STORE='comida-app-proto-v1';
@@ -2661,6 +2667,9 @@ document.addEventListener('keydown',e=>{
 });
 
 aplicarTema();
+/* v0.17: la web se guarda en el móvil para abrir sin conexión (sw.js). Solo la app, nunca los datos.
+   En la app de Android no hace falta: ya la lleva dentro. */
+try{if('serviceWorker' in navigator&&window.isSecureContext&&!esApp())navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}
 data=load();
 if(perfil.pin)bloquear();else render();
 })();

@@ -39,7 +39,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 
 ## La app (`index.html`)
 
-Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.16**: el
+Un solo fichero en la raíz, servido tal cual por GitHub Pages (`.nojekyll`). Es la **v0.17**: el
 diseño «Sereno» (D15), el PIN opcional (D14), Patrones y etiquetas (D16), la revisión de
 seguridad antes de publicar (D17), el **cifrado con el PIN** (D18) y, en Tu espacio, «Opinar» y
 «Privacidad» (D19), y las mejoras de después (sugerencias de alimentos, Patrones plegado). Guarda en el `localStorage` del navegador: cada móvil tiene
@@ -64,6 +64,11 @@ sus propios datos (D12). La copia de seguridad es `version: 3`.
   «Descargar lo que había» / «Descartar», y se borra al activar el PIN.
 - **Pruebas de la lógica** (sanear copias, fusionar, cifrar, CSV, PIN, bloqueo): `node --test
   tests/app.test.mjs`. Cargan el script de `index.html` en Node sin navegador (`tests/entorno-app.mjs`).
+- **Sin conexión (v0.17).** `sw.js` guarda la app (no los datos) en el móvil: con red sirve siempre la
+  versión publicada y la guarda; sin red, o si tarda más de 4 s, la guardada. `manifest.webmanifest` la
+  hace instalable (en iPhone, «Añadir a pantalla de inicio»). La `VERSION` de `sw.js` tiene que ser la de
+  `index.html` (lo comprueba `tests/test_sw.py`), para que cada versión nueva sustituya a la guardada.
+  En la app de Android no se registra.
 - Para probarla en local: `python3 -m http.server` en la raíz del repo y abrir
   `http://127.0.0.1:8000/`. El PIN necesita `localhost` o https (Web Crypto), no `file://`.
 

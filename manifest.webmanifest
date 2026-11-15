@@ -1,0 +1,15 @@
+{
+  "name": "Comida Consciente",
+  "short_name": "Comida Consciente",
+  "description": "Lo que comes y cómo te sientes antes y después. Para darte cuenta, no para controlar.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3F5EB",
+  "theme_color": "#F3F5EB",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

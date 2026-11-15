@@ -19,7 +19,7 @@ APP = Path(__file__).resolve().parents[1] / "index.html"
 
 # Lo que se permite y nada más. connect-src 'none': la página no puede conectarse a ningún sitio.
 PLANTILLA = ("default-src 'none'; script-src 'sha256-{hash}'; style-src 'unsafe-inline'; "
-             "img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; "
+             "img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; manifest-src 'self'; worker-src 'self'; "
              "base-uri 'none'; form-action 'none'")
 RE_SCRIPT = re.compile(r"<script>(.*?)</script>", re.S)
 RE_META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
