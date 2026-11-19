@@ -33,7 +33,7 @@ Empezar por `Comida_Consciente.md`. Este repo es solo la implementación.
 | `Diseño/CC-Esquema-de-Datos.md` | **El contrato de datos.** Manda sobre el código |
 | `Diseño/CC-Decisiones.md` | Las decisiones (D1–D18), con su motivo |
 | `Diseño/CC-Analisis.md` | Las preguntas pre-registradas (Q1–Q6, con Q3b) y qué tarjeta de Patrones responde a cada una |
-| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.12` |
+| `Versiones/` | Una nota por versión, de la `v0.1` a la `v0.17` |
 | `QA/` | Bugs, compatibilidad y la revisión de seguridad (`CC-Revision-Publicacion`) |
 | `fixtures/` | Contrato de aceptación del parser y del validador |
 
